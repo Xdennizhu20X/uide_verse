@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 227 50% 28%;
+    --foreground: 210 40% 98%;
+
+    --card: 227 50% 32%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 227 50% 28%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 42 93% 54%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    
+    --secondary: 218 81% 59%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 227 50% 32%;
+    --muted-foreground: 210 40% 64.9%;
+
+    --accent: 330 100% 58%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 227 50% 38%;
+    --input: 227 50% 38%;
+    --ring: 42 93% 54%;
+
+    --radius: 0.8rem;
+
+    --chart-1: 42 93% 54%;
+    --chart-2: 218 81% 59%;
+    --chart-3: 10 83% 52%;
+    --chart-4: 160 83% 42%;
+    --chart-5: 210 40% 98%;
+  }
+ 
+  .ecouide-theme {
+    --background: 158 44% 15%; /* Dark Green from image */
+    --foreground: 85 33% 85%; /* Light Green/Yellow from image */
+    
+    --card: 158 44% 20%;
+    --card-foreground: 85 33% 85%;
+    
+    --popover: 158 44% 20%;
+    --popover-foreground: 85 33% 85%;
+    
+    --primary: 85 43% 60%; /* UIDE letters green */
+    --primary-foreground: 158 44% 10%;
+
+    --secondary: 85 23% 70%;
+    --secondary-foreground: 158 44% 10%;
+    
+    --muted: 158 44% 25%;
+    --muted-foreground: 85 33% 75%;
+    
+    --accent: 85 43% 60%;
+    --accent-foreground: 158 44% 10%;
+    
+    --destructive: 0 63% 51%; /* A standard red for destructive actions */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 158 44% 28%;
+    --input: 158 44% 28%;
+    --ring: 85 43% 60%;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
