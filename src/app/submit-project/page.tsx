@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -19,36 +20,120 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AnimatedWrapper } from "@/components/animated-wrapper";
 import { UploadCloud } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { db } from "@/lib/firebase";
+import { addDoc, collection } from "firebase/firestore";
+import { useAuth } from "@/hooks/use-auth";
 
 const projectFormSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres."),
   description: z.string().min(20, "La descripción debe tener al menos 20 caracteres."),
   category: z.string({ required_error: "Por favor, selecciona una categoría." }),
   technologies: z.string().min(3, "Por favor, enumera al menos una tecnología."),
-  imageUrl: z.string().url("Por favor, introduce una URL de imagen válida.").optional(),
+  isEcological: z.boolean().default(false).optional(),
+  otherCategory: z.string().optional(),
+  otherAuthors: z.string().optional(),
+}).refine(data => {
+    if (data.category === 'Otro') {
+        return !!data.otherCategory;
+    }
+    return true;
+}, {
+    message: 'Por favor, especifica la categoría.',
+    path: ['otherCategory'],
 });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
 
 export default function SubmitProjectPage() {
+  const [projectFile, setProjectFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const { user } = useAuth();
+
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
       title: "",
       description: "",
       technologies: "",
+      otherAuthors: "",
     },
   });
 
-  function onSubmit(data: ProjectFormValues) {
-    console.log(data);
-    // Handle form submission
+  const isEcological = form.watch("isEcological");
+  const selectedCategory = form.watch("category");
+
+  async function onSubmit(data: ProjectFormValues) {
+    if (!user) {
+        console.error("No user is logged in.");
+        // Handle case where user is not logged in
+        return;
+    }
+
+    try {
+        const uploadFile = async (file: File) => {
+            return new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onloadend = async () => {
+                    try {
+                        const response = await fetch('/api/upload', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ file: reader.result }),
+                        });
+                        const { url } = await response.json();
+                        resolve(url);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = (error) => {
+                    reject(error);
+                };
+            });
+        };
+
+        let projectFileUrl = '';
+        if (projectFile) {
+            projectFileUrl = await uploadFile(projectFile);
+        }
+
+        let pdfFileUrl = '';
+        if (pdfFile) {
+            pdfFileUrl = await uploadFile(pdfFile);
+        }
+
+        const authors = [user.email]; // or user.uid
+        if (data.otherAuthors) {
+            const otherAuthorsList = data.otherAuthors.split(',').map(author => author.trim());
+            authors.push(...otherAuthorsList);
+        }
+
+        const projectData = {
+            ...data,
+            imageUrl: projectFileUrl,
+            developmentPdfUrl: pdfFileUrl,
+            authors: authors,
+        };
+        delete projectData.otherAuthors;
+
+        await addDoc(collection(db, "projects"), projectData);
+
+        console.log("Project submitted successfully!");
+        // Optionally, redirect the user or show a success message
+    } catch (error) {
+        console.error("Error submitting project: ", error);
+        // Handle error, show an error message to the user
+    }
   }
 
   return (
     <div className="container py-12 md:py-16">
       <AnimatedWrapper>
-        <Card className="max-w-4xl mx-auto">
+        <Card className={`max-w-4xl mx-auto ${isEcological ? 'ecouide-theme' : ''}`}>
           <CardHeader>
             <CardTitle className="text-3xl font-headline">Envía tu Proyecto</CardTitle>
             <CardDescription>Comparte tu trabajo con la comunidad de Uideverse. Rellena el siguiente formulario para empezar.</CardDescription>
@@ -71,6 +156,28 @@ export default function SubmitProjectPage() {
                 />
                 <FormField
                   control={form.control}
+                  name="isEcological"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Proyecto Ecológico
+                        </FormLabel>
+                        <FormDescription>
+                          Marca esta casilla si tu proyecto tiene un enfoque ecológico o de sostenibilidad.
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="description"
                   render={({ field }) => (
                     <FormItem>
@@ -82,6 +189,7 @@ export default function SubmitProjectPage() {
                     </FormItem>
                   )}
                 />
+                
                 <div className="grid md:grid-cols-2 gap-8">
                   <FormField
                     control={form.control}
@@ -96,12 +204,15 @@ export default function SubmitProjectPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Ecológico">Ecológico</SelectItem>
-                            <SelectItem value="Educación">Educación</SelectItem>
                             <SelectItem value="Desarrollo Web">Desarrollo Web</SelectItem>
                             <SelectItem value="App Móvil">App Móvil</SelectItem>
                             <SelectItem value="IA/ML">IA/ML</SelectItem>
                             <SelectItem value="IoT">IoT</SelectItem>
+                            <SelectItem value="Hardware">Hardware</SelectItem>
+                            <SelectItem value="Robótica">Robótica</SelectItem>
+                            <SelectItem value="Arte Digital">Arte Digital</SelectItem>
+                            <SelectItem value="Educación">Educación</SelectItem>
+                            <SelectItem value="Otro">Otro</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -125,6 +236,39 @@ export default function SubmitProjectPage() {
                     )}
                   />
                 </div>
+                {selectedCategory === 'Otro' && (
+                  <FormField
+                    control={form.control}
+                    name="otherCategory"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Especifica la Categoría</FormLabel>
+                        <FormControl>
+                          <Input placeholder="p. ej., Videojuego" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <FormField
+                    control={form.control}
+                    name="otherAuthors"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Otros Autores</FormLabel>
+                            <FormControl>
+                                <Input placeholder="p. ej., juanperez, mariagarcia" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                                Introduce los nombres de usuario de otros autores, separados por comas.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                
                 <FormItem>
                   <FormLabel>Archivos del Proyecto</FormLabel>
                   <FormControl>
@@ -133,14 +277,33 @@ export default function SubmitProjectPage() {
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                 <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
                                 <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
-                                <p className="text-xs text-muted-foreground">SVG, PNG, JPG o GIF (MAX. 800x400px)</p>
+                                <p className="text-xs text-muted-foreground">{projectFile ? projectFile.name : "SVG, PNG, JPG o GIF (MAX. 800x400px)"}</p>
                             </div>
-                            <input id="dropzone-file" type="file" className="hidden" />
+                            <input id="dropzone-file" type="file" className="hidden" onChange={(e) => setProjectFile(e.target.files?.[0] || null)} />
                         </label>
                     </div> 
                   </FormControl>
                    <FormDescription>
                     Sube imágenes o vídeos de tu proyecto.
+                  </FormDescription>
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Informe de Desarrollo del Proyecto (PDF)</FormLabel>
+                  <FormControl>
+                      <div className="flex items-center justify-center w-full">
+                          <label htmlFor="pdf-dropzone-file" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-secondary/50 hover:bg-secondary/80">
+                              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                  <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
+                                  <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
+                                  <p className="text-xs text-muted-foreground">{pdfFile ? pdfFile.name : "PDF (MAX. 5MB)"}</p>
+                              </div>
+                              <input id="pdf-dropzone-file" type="file" className="hidden" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+                          </label>
+                      </div>
+                  </FormControl>
+                  <FormDescription>
+                      Sube un archivo PDF con los detalles del desarrollo de tu proyecto.
                   </FormDescription>
                 </FormItem>
 

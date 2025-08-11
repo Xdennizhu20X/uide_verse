@@ -1,11 +1,13 @@
-"use client";
+'use client';
 
 import Link from "next/link";
 import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import Image from "next/image";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 const navLinks = [
   { href: "/", label: "Inicio" },
@@ -18,6 +20,23 @@ const logoUrl = "/uideverse-logo.png";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60">
@@ -89,19 +108,27 @@ export function SiteHeader() {
                         </nav>
                     </div>
                     <div className="flex flex-col gap-2 px-4 pt-4 border-t">
-                        <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-                            <Link href="/login">Iniciar Sesión</Link>
-                        </Button>
-                        <Button asChild onClick={() => setOpen(false)}>
-                            <Link href="/register">Registrarse</Link>
-                        </Button>
-                        <div className="h-px w-full bg-border my-2" />
-                        <Button asChild onClick={() => setOpen(false)}>
-                            <Link href="/submit-project">Enviar Proyecto</Link>
-                        </Button>
-                        <Button variant="outline" asChild onClick={() => setOpen(false)}>
-                            <Link href="/profile">Perfil</Link>
-                        </Button>
+                        {user ? (
+                          <>
+                            <Button asChild onClick={() => setOpen(false)}>
+                                <Link href="/submit-project">Enviar Proyecto</Link>
+                            </Button>
+                            <Button variant="outline" asChild onClick={() => setOpen(false)}>
+                                <Link href="/profile">Perfil</Link>
+                            </Button>
+                            <div className="h-px w-full bg-border my-2" />
+                            <Button variant="ghost" onClick={() => {handleLogout(); setOpen(false);}}>Cerrar Sesión</Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                                <Link href="/login">Iniciar Sesión</Link>
+                            </Button>
+                            <Button asChild onClick={() => setOpen(false)}>
+                                <Link href="/register">Registrarse</Link>
+                            </Button>
+                          </>
+                        )}
                     </div>
                 </div>
             </SheetContent>
@@ -111,19 +138,27 @@ export function SiteHeader() {
 
         <div className="hidden flex-1 items-center justify-end space-x-4 md:flex">
            <nav className="flex items-center space-x-2">
-            <Button variant="ghost" asChild>
-              <Link href="/login">Iniciar Sesión</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/register">Registrarse</Link>
-            </Button>
-            <div className="h-6 w-px bg-border mx-2" />
-            <Button asChild>
-              <Link href="/submit-project">Enviar Proyecto</Link>
-            </Button>
-            <Button variant="outline" asChild>
-               <Link href="/profile">Perfil</Link>
-            </Button>
+            {user ? (
+              <>
+                <Button asChild>
+                  <Link href="/submit-project">Enviar Proyecto</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/profile">Perfil</Link>
+                </Button>
+                <div className="h-6 w-px bg-border mx-2" />
+                <Button variant="ghost" onClick={handleLogout}>Cerrar Sesión</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/login">Iniciar Sesión</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/register">Registrarse</Link>
+                </Button>
+              </>
+            )}
           </nav>
         </div>
       </div>

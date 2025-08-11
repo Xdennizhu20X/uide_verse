@@ -8,6 +8,21 @@ export interface Project {
   technologies: string[];
   description: string;
   images: string[];
-  comments: { id: string; author: string; text: string }[];
+  comments: Comment[];
   isEco: boolean;
+}
+
+export interface User {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
+export interface Comment {
+    id: string;
+    author: string;
+    text: string;
+    createdAt: Date;
+    authorPhotoURL?: string;
 }

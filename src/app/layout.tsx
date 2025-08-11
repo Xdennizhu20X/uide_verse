@@ -1,3 +1,4 @@
+import AuthState from '@/components/auth-state';
 import type { Metadata } from 'next';
 import { SiteHeader } from '@/components/layout/site-header';
 import { Toaster } from '@/components/ui/toaster';
@@ -33,6 +34,7 @@ export default function RootLayout({
       >
         <div className="relative flex min-h-screen flex-col">
           <SiteHeader />
+          <AuthState />
           <div className="flex-1">{children}</div>
         </div>
         <Toaster />
