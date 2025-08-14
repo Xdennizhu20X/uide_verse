@@ -75,6 +75,8 @@ export default function SubmitProjectPage() {
         return;
     }
 
+    console.log("Submitting project for user:", user.email);
+
     try {
         const uploadFile = async (file: File) => {
             return new Promise<string>((resolve, reject) => {
@@ -122,15 +124,18 @@ export default function SubmitProjectPage() {
       title: data.title,
       description: data.description,
       category: data.category,
-      technologies: data.technologies,
-      website: data.website,
-      githubRepo: data.githubRepo,
+      technologies: data.technologies.split(',').map((tech) => tech.trim()),
+      ...(data.website && { website: data.website }),
+      ...(data.githubRepo && { githubRepo: data.githubRepo }),
       isEcological: data.isEcological || false, // Ensure boolean value
       ...(data.otherCategory && { otherCategory: data.otherCategory }), // Only include if exists
-      imageUrl: projectFileUrl || null,
+      imageUrls: projectFileUrl ? [projectFileUrl] : [],
       developmentPdfUrl: pdfFileUrl || null,
       authors: authors,
+      avatar: user.photoURL,
       createdAt: new Date().toISOString(),
+      likes: 0,
+      likedBy: [],
     };
 
     await addDoc(collection(db, "projects"), projectData);
@@ -302,17 +307,21 @@ export default function SubmitProjectPage() {
                     name="otherAuthors"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Otros Autores</FormLabel>
+                            <FormLabel>Correos Electrónicos de Otros Autores</FormLabel>
                             <FormControl>
-                                <Input placeholder="p. ej., juanperez, mariagarcia" {...field} />
+                                <Input placeholder="p. ej., juan.perez@uide.edu.ec, maria.garcia@uide.edu.ec" {...field} />
                             </FormControl>
                             <FormDescription>
-                                Introduce los nombres de usuario de otros autores, separados por comas.
+                                Introduce los correos electrónicos de otros autores, separados por comas.
                             </FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}
                 />
+
+                
+
+                
                 
                 <FormItem>
                   <FormLabel>Archivos del Proyecto</FormLabel>

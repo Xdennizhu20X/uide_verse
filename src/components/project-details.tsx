@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { ThumbsUp, MessageCircle, Leaf, Link } from 'lucide-react';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, increment, arrayUnion } from 'firebase/firestore';
 import type { Project, Comment } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -23,6 +23,8 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   const { user } = useAuth();
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
+  const [likes, setLikes] = useState(project.likes || 0);
+  const [hasLiked, setHasLiked] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'comments'), where('projectId', '==', project.id), orderBy('createdAt', 'desc'));
@@ -41,8 +43,20 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
       setComments(fetchedComments);
     });
 
+    if (user) {
+      const projectRef = doc(db, "projects", project.id);
+      const unsub = onSnapshot(projectRef, (doc) => {
+        const data = doc.data();
+        if (data && data.likedBy && data.likedBy.includes(user.uid)) {
+          setHasLiked(true);
+        }
+        setLikes(data?.likes || 0);
+      });
+      return () => unsub();
+    }
+
     return () => unsubscribe();
-  }, [project.id]);
+  }, [project.id, user]);
 
   const handleCommentSubmit = async () => {
     if (!newComment.trim() || !user) return;
@@ -56,6 +70,16 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
     });
 
     setNewComment('');
+  };
+
+  const handleLike = async () => {
+    if (!user) return;
+
+    const projectRef = doc(db, "projects", project.id);
+    await updateDoc(projectRef, {
+      likes: increment(1),
+      likedBy: arrayUnion(user.uid),
+    });
   };
 
   return (
@@ -145,6 +169,7 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
               </CardContent>
             </Card>
           </AnimatedWrapper>
+          {(project.website || project.githubRepo) && (
           <AnimatedWrapper delay={300}>
             <Card>
               <CardHeader>
@@ -170,6 +195,7 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
               </CardContent>
             </Card>
           </AnimatedWrapper>
+          )}
 
           <AnimatedWrapper delay={300}>
             <Card>
@@ -178,8 +204,8 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">¿Te ha resultado útil este proyecto?</p>
-                <Button className="w-full">
-                  <ThumbsUp className="mr-2 h-4 w-4" /> Me gusta el Proyecto
+                <Button className="w-full" onClick={handleLike} disabled={hasLiked}>
+                  <ThumbsUp className="mr-2 h-4 w-4" /> {likes} Me gusta el Proyecto
                 </Button>
               </CardContent>
             </Card>

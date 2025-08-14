@@ -19,7 +19,7 @@ export default async function ProjectDetailsPage({ params: paramsPromise }: { pa
         id: projectDoc.id,
         title: data.title,
         author: data.authors ? data.authors.join(', ') : 'Unknown',
-        avatar: 'https://placehold.co/40x40.png', // Placeholder
+        avatar: data.avatar || 'https://placehold.co/40x40.png',
         date: new Date().toISOString().split('T')[0], // Current date
         category: data.category === 'Otro' ? data.otherCategory : data.category,
         technologies: Array.isArray(data.technologies) ? data.technologies : (data.technologies || '').split(',').map((t: string) => t.trim()),

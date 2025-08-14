@@ -13,7 +13,7 @@ const navLinks = [
   { href: "/", label: "Inicio" },
   { href: "/projects", label: "Proyectos" },
   { href: "/ecouide", label: "EcoUide" },
-  { href: "/forum", label: "Foro" },
+  // { href: "/forum", label: "Foro" },
 ];
 
 const logoUrl = "/uideverse-logo.png";

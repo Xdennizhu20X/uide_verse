@@ -13,6 +13,8 @@ export interface Project {
   developmentPdfUrl?: string;
   comments: Comment[];
   isEco: boolean;
+  likes?: number;
+  likedBy?: string[]; // URL del perfil del autor
 }
 
 export interface User {
