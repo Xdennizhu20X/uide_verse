@@ -23,7 +23,7 @@ export default async function ProjectsPage() {
         category: data.category === 'Otro' ? data.otherCategory : data.category,
         technologies: Array.isArray(data.technologies) ? data.technologies : (data.technologies || '').split(',').map((t: string) => t.trim()),
         description: data.description,
-        images: data.imageUrl ? [data.imageUrl] : [],
+        imageUrls: data.imageUrls || [],
         comments: [],
         isEco: data.isEcological || false,
     };

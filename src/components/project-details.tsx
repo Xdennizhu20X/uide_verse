@@ -65,7 +65,7 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
           <AnimatedWrapper>
             <Card className="mb-8">
                 <Image
-                  src={project.images[0]}
+                  src={project.imageUrls[0]}
                   alt={project.title}
                   width={1200}
                   height={675}
@@ -95,6 +95,20 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                 <div className="flex flex-wrap gap-2">
                   {project.technologies.map((tech) => (
                     <Badge key={tech} variant="secondary">{tech}</Badge>
+                  ))}
+                </div>
+                <Separator className="my-6" />
+                <h3 className="font-semibold mb-4">Galería de Imágenes</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {project.imageUrls.slice(1).map((url, index) => (
+                    <Image
+                      key={index}
+                      src={url}
+                      alt={`${project.title} - Imagen ${index + 2}`}
+                      width={400}
+                      height={300}
+                      className="rounded-lg object-cover w-full aspect-video"
+                    />
                   ))}
                 </div>
               </CardContent>
@@ -173,6 +187,39 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
               </CardContent>
             </Card>
           </AnimatedWrapper>
+          <AnimatedWrapper delay={300}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Recursos Adicionales</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {project.website && (
+                  <a href={project.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                    Página Web
+                  </a>
+                )}
+                {project.githubRepo && (
+                  <a href={project.githubRepo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                    Repositorio de GitHub
+                  </a>
+                )}
+              </CardContent>
+            </Card>
+          </AnimatedWrapper>
+
+          {project.developmentPdfUrl && (
+            <AnimatedWrapper delay={400}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informe de Desarrollo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <iframe src={project.developmentPdfUrl} width="100%" height="600px" className="rounded-md" />
+                </CardContent>
+              </Card>
+            </AnimatedWrapper>
+          )}
+
           <AnimatedWrapper delay={300}>
             <Card>
               <CardHeader>

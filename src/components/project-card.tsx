@@ -17,7 +17,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <CardHeader className="p-0">
              <div className="relative">
                 <Image
-                    src={project.images[0]}
+                    src={project.imageUrls && project.imageUrls.length > 0 ? project.imageUrls[0] : 'https://placehold.co/400x250.png'}
                     alt={project.title}
                     width={400}
                     height={250}

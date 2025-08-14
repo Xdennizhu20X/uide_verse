@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,26 +10,48 @@ import { ProjectCard } from "@/components/project-card";
 import { projects } from "@/lib/data";
 import { AnimatedWrapper } from "@/components/animated-wrapper";
 import { User, Award, GitMerge, Edit, MessageSquare, Leaf } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 const userProjects = projects.filter(p => p.author === 'Jane Doe' || p.author === 'Emily White');
 
 export default function ProfilePage() {
+  const { user } = useAuth();
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (user) {
+      const fetchUserProfile = async () => {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data());
+        }
+      };
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  if (!user || !userProfile) {
+    return <div>Loading...</div>; // Or a skeleton loader
+  }
+
   return (
     <div className="container py-12 md:py-16">
       <AnimatedWrapper>
         <Card className="mb-8">
             <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
                 <Avatar className="h-24 w-24 border-4 border-primary">
-                    <AvatarImage src="https://placehold.co/100x100.png" />
-                    <AvatarFallback>JD</AvatarFallback>
+                    <AvatarImage src={user.photoURL || 'https://placehold.co/100x100.png'} />
+                    <AvatarFallback>{userProfile.firstName?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
                 <div className="flex-grow text-center md:text-left">
-                    <h1 className="text-3xl font-bold font-headline">Dennis Rodríguez</h1>
-                    <p className="text-muted-foreground">Estudiante de Ing. en TICS | Eco-Innovador</p>
+                    <h1 className="text-3xl font-bold font-headline">{userProfile.firstName} {userProfile.lastName}</h1>
+                    <p className="text-muted-foreground">{user.email}</p>
                     <div className="mt-2 flex flex-wrap gap-2 justify-center md:justify-start">
-                        <Badge>React</Badge>
-                        <Badge>IoT</Badge>
-                        <Badge variant="secondary">Tecnología Sostenible</Badge>
+                        {userProfile.technologies?.map((tech: string) => (
+                            <Badge key={tech}>{tech}</Badge>
+                        ))}
                     </div>
                 </div>
                 <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Editar Perfil</Button>

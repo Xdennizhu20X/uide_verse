@@ -7,7 +7,10 @@ export interface Project {
   category: string;
   technologies: string[];
   description: string;
-  images: string[];
+  imageUrls: string[];
+  website?: string;
+  githubRepo?: string;
+  developmentPdfUrl?: string;
   comments: Comment[];
   isEco: boolean;
 }

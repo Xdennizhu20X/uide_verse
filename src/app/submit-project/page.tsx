@@ -24,12 +24,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { db } from "@/lib/firebase";
 import { addDoc, collection } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
 
 const projectFormSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres."),
   description: z.string().min(20, "La descripción debe tener al menos 20 caracteres."),
   category: z.string({ required_error: "Por favor, selecciona una categoría." }),
   technologies: z.string().min(3, "Por favor, enumera al menos una tecnología."),
+  website: z.string().url({ message: "Por favor, introduce una URL válida." }).optional(),
+  githubRepo: z.string().url({ message: "Por favor, introduce una URL válida de GitHub." }).optional(),
   isEcological: z.boolean().default(false).optional(),
   otherCategory: z.string().optional(),
   otherAuthors: z.string().optional(),
@@ -49,16 +52,18 @@ export default function SubmitProjectPage() {
   const [projectFile, setProjectFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const { user } = useAuth();
+  const router = useRouter();
 
   const form = useForm<ProjectFormValues>({
-    resolver: zodResolver(projectFormSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      technologies: "",
-      otherAuthors: "",
-    },
-  });
+  resolver: zodResolver(projectFormSchema),
+  defaultValues: {
+    title: "",
+    description: "",
+    technologies: "",
+    otherAuthors: "",
+    isEcological: false, // Add default value
+  },
+});
 
   const isEcological = form.watch("isEcological");
   const selectedCategory = form.watch("category");
@@ -97,38 +102,49 @@ export default function SubmitProjectPage() {
         };
 
         let projectFileUrl = '';
-        if (projectFile) {
-            projectFileUrl = await uploadFile(projectFile);
-        }
-
-        let pdfFileUrl = '';
-        if (pdfFile) {
-            pdfFileUrl = await uploadFile(pdfFile);
-        }
-
-        const authors = [user.email]; // or user.uid
-        if (data.otherAuthors) {
-            const otherAuthorsList = data.otherAuthors.split(',').map(author => author.trim());
-            authors.push(...otherAuthorsList);
-        }
-
-        const projectData = {
-            ...data,
-            imageUrl: projectFileUrl,
-            developmentPdfUrl: pdfFileUrl,
-            authors: authors,
-        };
-        delete projectData.otherAuthors;
-
-        await addDoc(collection(db, "projects"), projectData);
-
-        console.log("Project submitted successfully!");
-        // Optionally, redirect the user or show a success message
-    } catch (error) {
-        console.error("Error submitting project: ", error);
-        // Handle error, show an error message to the user
+    if (projectFile) {
+      projectFileUrl = await uploadFile(projectFile);
     }
+
+    let pdfFileUrl = '';
+    if (pdfFile) {
+      pdfFileUrl = await uploadFile(pdfFile);
+    }
+
+    const authors = [user.email];
+    if (data.otherAuthors) {
+      const otherAuthorsList = data.otherAuthors.split(',').map(author => author.trim());
+      authors.push(...otherAuthorsList);
+    }
+
+    // Clean the data before submission
+    const projectData = {
+      title: data.title,
+      description: data.description,
+      category: data.category,
+      technologies: data.technologies,
+      website: data.website,
+      githubRepo: data.githubRepo,
+      isEcological: data.isEcological || false, // Ensure boolean value
+      ...(data.otherCategory && { otherCategory: data.otherCategory }), // Only include if exists
+      imageUrl: projectFileUrl || null,
+      developmentPdfUrl: pdfFileUrl || null,
+      authors: authors,
+      createdAt: new Date().toISOString(),
+    };
+
+    await addDoc(collection(db, "projects"), projectData);
+
+    console.log("Project submitted successfully!");
+    // Optionally reset the form after successful submission
+    form.reset();
+    setProjectFile(null);
+    setPdfFile(null);
+    router.push('/projects');
+  } catch (error) {
+    console.error("Error submitting project: ", error);
   }
+}
 
   return (
     <div className="container py-12 md:py-16">
@@ -251,6 +267,35 @@ export default function SubmitProjectPage() {
                     )}
                   />
                 )}
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <FormField
+                    control={form.control}
+                    name="website"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Website</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://mi-proyecto.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="githubRepo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Repositorio de GitHub</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://github.com/usuario/repo" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                     control={form.control}
