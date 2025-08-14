@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { ThumbsUp, MessageCircle, Leaf } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Leaf, Link } from 'lucide-react';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy } from 'firebase/firestore';
@@ -111,10 +111,79 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                     />
                   ))}
                 </div>
+                {project.developmentPdfUrl && (
+                  <>
+                    <Separator className="my-6" />
+                    <h3 className="font-semibold mb-4">Informe de Desarrollo</h3>
+                    <div className="w-full h-[800px]">
+                      <iframe src={project.developmentPdfUrl} width="100%" height="100%" className="rounded-md border" />
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </AnimatedWrapper>
 
+          
+        </div>
+
+        <div className="lg:col-span-1 space-y-8">
+          <AnimatedWrapper delay={100}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Autor</CardTitle>
+              </CardHeader>
+              <CardContent className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={project.avatar} alt={project.author} />
+                  <AvatarFallback>{project.author.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-bold text-lg">{project.author}</p>
+                  <p className="text-sm text-muted-foreground">Publicado el {project.date}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </AnimatedWrapper>
+          <AnimatedWrapper delay={300}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Recursos Adicionales</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-5">
+                {project.website && (
+                  <a href={project.website} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" className="w-full">
+                      <Link className="mr-2 h-4 w-4" />
+                      Página Web
+                    </Button>
+                  </a>
+                )}
+                {project.githubRepo && (
+                  <a href={project.githubRepo} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" className="w-full">
+                      <svg className="mr-2 h-4 w-4" viewBox="0 0 16 16" version="1.1" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                      Repositorio de GitHub
+                    </Button>
+                  </a>
+                )}
+              </CardContent>
+            </Card>
+          </AnimatedWrapper>
+
+          <AnimatedWrapper delay={300}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Dar Feedback</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">¿Te ha resultado útil este proyecto?</p>
+                <Button className="w-full">
+                  <ThumbsUp className="mr-2 h-4 w-4" /> Me gusta el Proyecto
+                </Button>
+              </CardContent>
+            </Card>
+          </AnimatedWrapper>
           <AnimatedWrapper delay={200}>
             <Card>
               <CardHeader>
@@ -164,72 +233,6 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </AnimatedWrapper>
-        </div>
-
-        <div className="lg:col-span-1 space-y-8">
-          <AnimatedWrapper delay={100}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Autor</CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={project.avatar} alt={project.author} />
-                  <AvatarFallback>{project.author.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-bold text-lg">{project.author}</p>
-                  <p className="text-sm text-muted-foreground">Publicado el {project.date}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </AnimatedWrapper>
-          <AnimatedWrapper delay={300}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Recursos Adicionales</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {project.website && (
-                  <a href={project.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    Página Web
-                  </a>
-                )}
-                {project.githubRepo && (
-                  <a href={project.githubRepo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    Repositorio de GitHub
-                  </a>
-                )}
-              </CardContent>
-            </Card>
-          </AnimatedWrapper>
-
-          {project.developmentPdfUrl && (
-            <AnimatedWrapper delay={400}>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informe de Desarrollo</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <iframe src={project.developmentPdfUrl} width="100%" height="600px" className="rounded-md" />
-                </CardContent>
-              </Card>
-            </AnimatedWrapper>
-          )}
-
-          <AnimatedWrapper delay={300}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Dar Feedback</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">¿Te ha resultado útil este proyecto?</p>
-                <Button className="w-full">
-                  <ThumbsUp className="mr-2 h-4 w-4" /> Me gusta el Proyecto
-                </Button>
               </CardContent>
             </Card>
           </AnimatedWrapper>
