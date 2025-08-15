@@ -12,16 +12,21 @@ import { airQualityDb, airQualityAuth } from "@/lib/firebase"
 const DEVICE_ID = "B06B28B3A3A0"
 
 interface SensorData {
-  ts_ms: number
-  co2?: number
-  humidity?: number
-  pm01?: number
-  pm25?: number
-  pm10?: number
-  pressure?: number
-  temperature?: number
-  tvoc?: number
-  uv?: number
+  ts: string;
+  co2?: number;
+  humidity?: number;
+  pm1?: number;
+  pm10?: number;
+  pm25?: number;
+  pressure?: number;
+  temperature?: number;
+  tvoc?: number;
+  uv?: number;
+  quality?: {
+    emoji: string;
+    label: string;
+    level: number;
+  };
 }
 
 export default function AirQualityPage() {
@@ -50,7 +55,7 @@ export default function AirQualityPage() {
     // Suscribirse a los últimos 10 registros
     const q = query(
       ref(airQualityDb, `devices/${DEVICE_ID}/readings`),
-      orderByChild("ts_ms"),
+      orderByChild("ts"),
       limitToLast(10)
     )
 
@@ -65,18 +70,15 @@ export default function AirQualityPage() {
     }
   }, [])
 
-  // Procesar datos para el gráfico (últimos 10 registros)
-  const chartData = sensorReadings.map(item => ({
-    time: new Date(item.ts_ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    pm25: item.pm25,
-    pm10: item.pm10,
-    co2: item.co2,
-    humidity: item.humidity,
-    temperature: item.temperature,
-    uv: item.uv,
-    tvoc: item.tvoc,
-    pressure: item.pressure
-  })).reverse() // Ordenar del más antiguo al más reciente
+  const chartData = sensorReadings
+    .map(item => ({
+      time: item.ts ? new Date(item.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+      pm25: item.pm25,
+      pm10: item.pm10,
+      co2: item.co2,
+      tvoc: item.tvoc,
+    }))
+    .sort((a, b) => a.time.localeCompare(b.time));
 
   // Calcular calidad del aire basada en PM2.5
   const calculateAQI = (pm25: number | undefined) => {
@@ -89,10 +91,7 @@ export default function AirQualityPage() {
   }
 
   const currentAQI = calculateAQI(lastReading?.pm25)
-  const aqiStatus = currentAQI <= 50 ? "Buena" : 
-                   currentAQI <= 100 ? "Moderada" : 
-                   currentAQI <= 150 ? "Dañina para grupos sensibles" : 
-                   "Dañina"
+  const aqiStatus = lastReading?.quality?.label || '--'
 
   return (
     <div className="container py-12 md:py-16">
@@ -101,8 +100,8 @@ export default function AirQualityPage() {
           <Activity className="mx-auto h-16 w-16 text-primary mb-4"/>
           <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">Panel Eco-SensorAir</h1>
           <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-            Datos en tiempo real del sensor. Última actualización: {lastReading ? 
-              new Date(lastReading.ts_ms).toLocaleTimeString() : 'cargando...'}
+            Datos en tiempo real del sensor. Última actualización: {lastReading?.ts ? 
+              new Date(lastReading.ts).toLocaleTimeString() : 'cargando...'}
           </p>
         </div>
       </AnimatedWrapper>
@@ -116,12 +115,12 @@ export default function AirQualityPage() {
             <AnimatedWrapper delay={100}>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">ICA (PM2.5)</CardTitle>
+                  <CardTitle className="text-sm font-medium">Calidad del Aire</CardTitle>
                   <Gauge className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{currentAQI}</div>
-                  <p className="text-xs text-muted-foreground">{aqiStatus}</p>
+                  <div className="text-2xl font-bold">{lastReading?.quality?.emoji} {aqiStatus}</div>
+                  <p className="text-xs text-muted-foreground">ICA: {currentAQI}</p>
                   <p className="text-xs mt-1">PM2.5: {lastReading?.pm25?.toFixed(1) || '--'} µg/m³</p>
                 </CardContent>
               </Card>
@@ -342,35 +341,19 @@ export default function AirQualityPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {sensorReadings.reverse().map((reading, index) => (
+                      {[...sensorReadings].reverse().map((reading, index) => (
                         <tr key={index}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(reading.ts_ms).toLocaleTimeString()}
+                            {reading.ts ? new Date(reading.ts).toLocaleTimeString() : '--'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {reading.pm25?.toFixed(1) || '--'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {reading.pm10?.toFixed(1) || '--'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {reading.co2?.toFixed(0) || '--'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {reading.tvoc?.toFixed(0) || '--'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {reading.temperature?.toFixed(1) || '--'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {reading.humidity?.toFixed(0) || '--'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {reading.uv?.toFixed(1) || '--'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {reading.pressure?.toFixed(0) || '--'}
-                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reading.pm25?.toFixed(1) || '--'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reading.pm10?.toFixed(1) || '--'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reading.co2?.toFixed(0) || '--'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reading.tvoc?.toFixed(0) || '--'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reading.temperature?.toFixed(1) || '--'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reading.humidity?.toFixed(0) || '--'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reading.uv?.toFixed(1) || '--'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reading.pressure?.toFixed(0) || '--'}</td>
                         </tr>
                       ))}
                     </tbody>
