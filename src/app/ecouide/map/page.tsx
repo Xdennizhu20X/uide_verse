@@ -44,13 +44,13 @@ const locations = [
   },
 ];
 
+const Map = dynamic(() => import('@/components/ui/map').then(mod => mod.Map), {
+  loading: () => <div className="w-full h-[600px] bg-secondary/30 rounded-l-lg flex items-center justify-center"><p>Cargando mapa...</p></div>,
+  ssr: false
+});
+
 export default function InteractiveMapPage() {
   const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(null);
-
-  const Map = useMemo(() => dynamic(() => import('@/components/ui/map').then(mod => mod.Map), {
-    loading: () => <div className="w-full h-[600px] bg-secondary/30 rounded-l-lg flex items-center justify-center"><p>Cargando mapa...</p></div>,
-    ssr: false
-  }), []);
 
   return (
     <div className="container py-12 md:py-16">
@@ -64,8 +64,7 @@ export default function InteractiveMapPage() {
         </div>
       </AnimatedWrapper>
 
-      <AnimatedWrapper delay={200}>
-        <Card>
+      <Card>
             <div className="grid lg:grid-cols-4">
                 <div className="lg:col-span-3">
                     <Map locations={locations} selectedPosition={selectedPosition} />
@@ -86,7 +85,6 @@ export default function InteractiveMapPage() {
                 </div>
             </div>
         </Card>
-      </AnimatedWrapper>
     </div>
   );
 }
