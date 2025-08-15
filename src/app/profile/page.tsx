@@ -9,13 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectCard } from "@/components/project-card"; // Asegúrate de tener este componente
 import {  ProjectCardSkeleton } from "@/components/project-card-skeleton"; // Asegúrate de tener este componente
 import { AnimatedWrapper } from "@/components/animated-wrapper";
-import { User, Award, GitMerge, Edit, MessageSquare, Leaf } from "lucide-react";
+import { User, Award, GitMerge, Edit, Star, Upload, Leaf } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs, limit, startAfter } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, limit, startAfter, setDoc } from "firebase/firestore";
 import type { Project } from "@/lib/types";
 
 const PROJECTS_PER_PAGE = 6;
+
+const allBadges = [
+  { id: 'first-project', name: 'Primer Proyecto', icon: <Award className="h-8 w-8 text-primary"/> },
+  { id: 'eco-warrior', name: 'Eco-Guerrero', icon: <Leaf className="h-8 w-8 text-accent"/> },
+  { id: '10-likes', name: '10 Likes', icon: <Star className="h-8 w-8"/> },
+  { id: '10-projects', name: '10 Proyectos', icon: <Upload className="h-8 w-8"/> },
+];
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -25,6 +32,7 @@ export default function ProfilePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [userBadges, setUserBadges] = useState<any[]>([]);
 
   const fetchUserProjects = async (loadMore = false) => {
     if (!user) return;
@@ -107,11 +115,45 @@ export default function ProfilePage() {
           setUserProfile(userDoc.data());
         }
       };
+
+      const fetchUserBadges = async () => {
+        const badgesQuery = query(collection(db, 'users', user.uid, 'badges'));
+        const querySnapshot = await getDocs(badgesQuery);
+        const unlockedBadges = querySnapshot.docs.map(doc => doc.id);
+
+        const badges = allBadges.map(badge => ({
+          ...badge,
+          unlocked: unlockedBadges.includes(badge.id),
+        }));
+        setUserBadges(badges);
+        return unlockedBadges;
+      };
       
-      fetchUserProfile();
-      fetchUserProjects(false);
+      const checkAndAwardBadges = async (unlockedBadges: string[]) => {
+        // Check for first project badge
+        if (userProjects.length > 0 && !unlockedBadges.includes('first-project')) {
+          await setDoc(doc(db, "users", user.uid, "badges", "first-project"), { unlockedAt: new Date() });
+        }
+
+        // Check for eco-warrior badge
+        const ecoProjectExists = userProjects.some(p => p.isEco);
+        if (ecoProjectExists && !unlockedBadges.includes('eco-warrior')) {
+            await setDoc(doc(db, "users", user.uid, "badges", "eco-warrior"), { unlockedAt: new Date() });
+        }
+      };
+
+      const fetchData = async () => {
+        await fetchUserProfile();
+        await fetchUserProjects(false);
+        const unlockedBadges = await fetchUserBadges();
+        await checkAndAwardBadges(unlockedBadges);
+        // Re-fetch badges to update UI
+        await fetchUserBadges();
+      };
+
+      fetchData();
     }
-  }, [user]);
+  }, [user, userProjects.length]);
 
   const loadMoreProjects = () => {
     fetchUserProjects(true);
@@ -201,18 +243,22 @@ export default function ProfilePage() {
                 <CardTitle>Insignias Obtenidas</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-center">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="p-4 bg-secondary rounded-full"><Award className="h-8 w-8 text-primary"/></div>
-                  <p className="text-sm font-medium">Primer Proyecto</p>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div className="p-4 bg-secondary rounded-full"><Leaf className="h-8 w-8 text-accent"/></div>
-                  <p className="text-sm font-medium">Eco-Guerrero</p>
-                </div>
-                <div className="flex flex-col items-center gap-2 opacity-50">
-                  <div className="p-4 bg-secondary rounded-full"><MessageSquare className="h-8 w-8"/></div>
-                  <p className="text-sm font-medium">Colaborador</p>
-                </div>
+                {userBadges.map((badge) => (
+                  <div
+                    key={badge.id}
+                    className={`flex flex-col items-center gap-2 ${
+                      !badge.unlocked ? 'badge-locked' : ''
+                    }`}
+                  >
+                    <div className="p-4 bg-secondary rounded-full relative">
+                      {badge.icon}
+                      {!badge.unlocked && (
+                        <div className="absolute inset-0 bg-black/70 rounded-full" />
+                      )}
+                    </div>
+                    <p className="text-sm font-medium">{badge.name}</p>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </TabsContent>

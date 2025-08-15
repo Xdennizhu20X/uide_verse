@@ -5,15 +5,48 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, BrainCircuit, Leaf, MessageSquare } from 'lucide-react';
 import { ProjectCard } from '@/components/project-card';
-import { projects } from '@/lib/data';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 import { ParticleBackground } from '@/components/ui/particle-background';
-import { useState } from 'react';
-import type { MouseEvent } from 'react';
+import { useState, useEffect, MouseEvent } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import type { Project } from '@/lib/types';
 
 export default function Home() {
-  const featuredProjects = projects.slice(0, 3);
+  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
   const [mousePosition, setMousePosition] = useState<{ x: number, y: number } | null>(null);
+
+  useEffect(() => {
+    const fetchFeaturedProjects = async () => {
+      const projectsRef = collection(db, 'projects');
+      const q = query(projectsRef, orderBy('likes', 'desc'), limit(3));
+      const querySnapshot = await getDocs(q);
+      const projects: Project[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        projects.push({
+          id: doc.id,
+          title: data.title,
+          author: data.authors ? data.authors.join(', ') : 'Unknown',
+          avatar: data.avatar || 'https://placehold.co/40x40.png',
+          date: new Date().toISOString().split('T')[0], // Current date
+          category: data.category === 'Otro' ? data.otherCategory : data.category,
+          technologies: Array.isArray(data.technologies) ? data.technologies : (data.technologies || '').split(',').map((t: string) => t.trim()),
+          description: data.description,
+          imageUrls: data.imageUrls || [],
+          website: data.website,
+          githubRepo: data.githubRepo,
+          developmentPdfUrl: data.developmentPdfUrl,
+          comments: [], // Comments will be fetched client-side
+          isEco: data.isEcological || false,
+          likes: data.likes || 0,
+        });
+      });
+      setFeaturedProjects(projects);
+    };
+
+    fetchFeaturedProjects();
+  }, []);
 
   const handleMouseMove = (event: MouseEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -52,11 +85,11 @@ export default function Home() {
                       Explorar Proyectos <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" size="lg">
+                  {/* <Button asChild variant="outline" size="lg">
                     <Link href="/forum">
                       Únete al Foro <MessageSquare className="ml-2 h-4 w-4" />
                     </Link>
-                  </Button>
+                  </Button> */}
                 </div>
               </AnimatedWrapper>
             </div>
@@ -155,7 +188,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="w-full py-12 md:py-24 lg:py-32">
+        {/* <section className="w-full py-12 md:py-24 lg:py-32">
           <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
             <AnimatedWrapper>
               <div className="space-y-3">
@@ -177,7 +210,7 @@ export default function Home() {
               </div>
             </AnimatedWrapper>
           </div>
-        </section>
+        </section> */}
       </div>
     </>
   );

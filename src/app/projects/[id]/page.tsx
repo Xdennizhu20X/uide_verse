@@ -1,7 +1,7 @@
 import { projects as hardcodedProjects } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 import type { Project } from '@/lib/types';
 import { ProjectDetails } from '@/components/project-details';
 
@@ -15,10 +15,22 @@ export default async function ProjectDetailsPage({ params: paramsPromise }: { pa
 
     if (projectDoc.exists()) {
       const data = projectDoc.data();
+      const authors = data.authors || [];
+      let authorId = '';
+
+      if (authors.length > 0) {
+        const usersQuery = query(collection(db, 'users'), where('email', '==', authors[0]));
+        const usersSnapshot = await getDocs(usersQuery);
+        if (!usersSnapshot.empty) {
+          authorId = usersSnapshot.docs[0].id;
+        }
+      }
+
       project = {
         id: projectDoc.id,
         title: data.title,
         author: data.authors ? data.authors.join(', ') : 'Unknown',
+        authorId: authorId,
         avatar: data.avatar || 'https://placehold.co/40x40.png',
         date: new Date().toISOString().split('T')[0], // Current date
         category: data.category === 'Otro' ? data.otherCategory : data.category,

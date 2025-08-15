@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { ThumbsUp, MessageCircle, Leaf, Link } from 'lucide-react';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, increment, arrayUnion } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, increment, arrayUnion, setDoc } from 'firebase/firestore';
 import type { Project, Comment } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -73,13 +73,25 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   };
 
   const handleLike = async () => {
-    if (!user) return;
+    if (!user || !project.authorId) return;
 
     const projectRef = doc(db, "projects", project.id);
     await updateDoc(projectRef, {
       likes: increment(1),
       likedBy: arrayUnion(user.uid),
     });
+
+    const authorProjectsQuery = query(collection(db, "projects"), where("authors", "array-contains", project.author));
+    const authorProjectsSnapshot = await getDocs(authorProjectsQuery);
+    
+    let totalLikes = 0;
+    authorProjectsSnapshot.forEach(doc => {
+        totalLikes += doc.data().likes || 0;
+    });
+
+    if (totalLikes >= 10) {
+        await setDoc(doc(db, "users", project.authorId, "badges", "10-likes"), { unlockedAt: new Date() });
+    }
   };
 
   return (

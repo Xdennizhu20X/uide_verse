@@ -22,7 +22,7 @@ import { AnimatedWrapper } from "@/components/animated-wrapper";
 import { UploadCloud } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { db } from "@/lib/firebase";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 
@@ -139,6 +139,23 @@ export default function SubmitProjectPage() {
     };
 
     await addDoc(collection(db, "projects"), projectData);
+
+    const userProjectsQuery = query(collection(db, "projects"), where("authors", "array-contains", user.email));
+    const userProjectsSnapshot = await getDocs(userProjectsQuery);
+    const numProjects = userProjectsSnapshot.size;
+
+    if (numProjects === 1) {
+        await setDoc(doc(db, "users", user.uid, "badges", "first-project"), { unlockedAt: new Date() });
+    }
+
+    if (numProjects >= 10) {
+        await setDoc(doc(db, "users", user.uid, "badges", "10-projects"), { unlockedAt: new Date() });
+    }
+
+    if (projectData.isEcological) {
+        await setDoc(doc(db, "users", user.uid, "badges", "eco-warrior"), { unlockedAt: new Date() });
+    }
+
 
     console.log("Project submitted successfully!");
     // Optionally reset the form after successful submission
