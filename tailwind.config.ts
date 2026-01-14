@@ -1,4 +1,4 @@
-import type {Config} from 'tailwindcss';
+import type { Config } from 'tailwindcss';
 
 export default {
   content: [
@@ -6,6 +6,7 @@ export default {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: "class",
   theme: {
     container: {
       center: true,
@@ -71,6 +72,12 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
+        // Custom palette colors
+        'accent-gold': '#F0A901',
+        'accent-maroon': '#910048',
+        'deep-blue': '#002D72',
+        'dark-navy': '#0A1A3C',
+        'soft-gray': '#E8E8E8',
       },
       borderRadius: {
         lg: 'var(--radius)',

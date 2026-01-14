@@ -1,6 +1,7 @@
-
 import type { Metadata } from 'next';
 import { SiteHeader } from '@/components/layout/site-header';
+import { SiteFooter } from '@/components/layout/site-footer';
+import { ThemeProvider } from '@/components/layout/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { Poppins } from 'next/font/google';
@@ -24,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <head />
       <body
         className={cn(
@@ -32,12 +33,19 @@ export default function RootLayout({
           fontPoppins.variable
         )}
       >
-        <div className="relative flex min-h-screen flex-col">
-          <SiteHeader />
-          
-          <div className="flex-1">{children}</div>
-        </div>
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <div className="relative flex min-h-screen flex-col">
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </div>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

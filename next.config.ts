@@ -1,4 +1,4 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: false,
@@ -29,9 +29,15 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'thumbs.dreamstime.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
-    
-  };
+
+};
 
 export default nextConfig;

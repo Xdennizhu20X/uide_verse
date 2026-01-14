@@ -6,15 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, BrainCircuit, Leaf, MessageSquare } from 'lucide-react';
 import { ProjectCard } from '@/components/project-card';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
-import { ParticleBackground } from '@/components/ui/particle-background';
-import { useState, useEffect, MouseEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import type { Project } from '@/lib/types';
 
 export default function Home() {
   const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
-  const [mousePosition, setMousePosition] = useState<{ x: number, y: number } | null>(null);
 
   useEffect(() => {
     const fetchFeaturedProjects = async () => {
@@ -29,7 +27,7 @@ export default function Home() {
           title: data.title,
           author: data.authors ? data.authors.join(', ') : 'Unknown',
           avatar: data.avatar || 'https://placehold.co/40x40.png',
-          date: new Date().toISOString().split('T')[0], // Current date
+          date: new Date().toISOString().split('T')[0],
           category: data.category === 'Otro' ? data.otherCategory : data.category,
           technologies: Array.isArray(data.technologies) ? data.technologies : (data.technologies || '').split(',').map((t: string) => t.trim()),
           description: data.description,
@@ -37,7 +35,7 @@ export default function Home() {
           website: data.website,
           githubRepo: data.githubRepo,
           developmentPdfUrl: data.developmentPdfUrl,
-          comments: [], // Comments will be fetched client-side
+          comments: [],
           isEco: data.isEcological || false,
           likes: data.likes || 0,
         });
@@ -48,39 +46,36 @@ export default function Home() {
     fetchFeaturedProjects();
   }, []);
 
-  const handleMouseMove = (event: MouseEvent<HTMLElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    setMousePosition({ x: event.clientX - rect.left, y: event.clientY - rect.top });
-  };
-  
-  const handleMouseLeave = () => {
-    setMousePosition(null);
-  }
-
   return (
     <>
       <div className="flex flex-col min-h-screen">
-        <section
-          className="group/hero relative w-full py-24 md:py-40 lg:py-56 text-center overflow-hidden"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-        >
-          <ParticleBackground mousePosition={mousePosition} />
+        {/* Hero Section - Institutional Style */}
+        <section className="relative w-full py-24 md:py-32 lg:py-40 text-center overflow-hidden bg-primary dark:bg-dark-navy">
+          {/* Subtle gradient overlay */}
+          <div className="absolute inset-0 opacity-10 dark:opacity-20 pointer-events-none">
+            <div className="absolute -top-24 -right-24 w-96 h-96 bg-accent-gold rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 -left-24 w-72 h-72 bg-accent-maroon rounded-full blur-3xl"></div>
+          </div>
           <div className="container relative z-10 px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-6">
               <AnimatedWrapper>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 mb-4 backdrop-blur-sm">
+                  <span className="flex h-2 w-2 rounded-full bg-accent-gold"></span>
+                  <span className="text-xs font-medium text-white/90 uppercase tracking-wide">Plataforma Universitaria</span>
+                </div>
                 <div className="space-y-4">
-                  <h1 className="text-4xl font-bold tracking-tighter sm:text-6xl xl:text-7xl/none font-headline text-primary [text-shadow:0_0_15px_hsl(var(--primary)/0.5)]">
-                    Bienvenido a Uideverse Hub
+                  <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline text-white">
+                    Descubre la próxima generación de{' '}
+                    <span className="text-accent-gold">innovación académica</span>
                   </h1>
-                  <p className="max-w-[700px] text-muted-foreground md:text-xl mx-auto">
-                    Un universo para mostrar, descubrir y colaborar en los proyectos TIC más innovadores de la UIDE.
+                  <p className="max-w-[700px] text-blue-100 dark:text-slate-300 md:text-xl mx-auto">
+                    Muestra tus proyectos universitarios, colabora con compañeros y construye un portafolio que destaque.
                   </p>
                 </div>
               </AnimatedWrapper>
               <AnimatedWrapper delay={200}>
                 <div className="flex flex-col gap-4 min-[400px]:flex-row justify-center">
-                  <Button asChild size="lg">
+                  <Button asChild size="lg" className="bg-accent-gold hover:bg-amber-400 text-primary font-bold rounded-full shadow-lg">
                     <Link href="/projects">
                       Explorar Proyectos <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>

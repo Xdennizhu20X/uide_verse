@@ -4,23 +4,22 @@
 
 @layer base {
   :root {
-    /* New Color Palette */
-    --background: 216 100% 17%;
-    /* #002D72 - Deep Blue (Darker) */
-    --foreground: 0 0% 100%;
-    /* #FFFFFF - White */
+    /* Light Theme - Modern & Professional */
+    --background: 240 5% 96%;
+    /* #F5F5F7 - Soft off-white */
+    --foreground: 221 71% 14%;
+    /* #0A1A3C - Dark Navy for readability */
 
-    --card: 221 71% 14%;
-    /* #0A1A3C - Dark Navy */
-    --card-foreground: 0 0% 100%;
+    --card: 0 0% 100%;
+    /* Pure white for cards */
+    --card-foreground: 221 71% 14%;
 
-    --popover: 221 71% 14%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 221 71% 14%;
 
-    --primary: 42 99% 47%;
-    /* #F0A901 - Golden Yellow */
-    --primary-foreground: 216 100% 22%;
-    /* Deep Blue text on yellow */
+    --primary: 216 100% 22%;
+    /* #002D72 - Deep Blue */
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 330 100% 28%;
     /* #910048 - Magenta */
@@ -28,7 +27,62 @@
 
     --muted: 0 0% 91%;
     /* #E8E8E8 - Light Grey */
-    --muted-foreground: 216 50% 40%;
+    --muted-foreground: 215 16% 47%;
+    /* Slate gray */
+
+    --accent: 42 99% 47%;
+    /* #F0A901 - Golden Yellow */
+    --accent-foreground: 221 71% 14%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 214 32% 91%;
+    /* Soft border */
+    --input: 214 32% 91%;
+    --ring: 216 100% 22%;
+    /* Deep Blue */
+
+    --radius: 0.5rem;
+
+    --chart-1: 42 99% 47%;
+    /* Golden Yellow */
+    --chart-2: 330 100% 28%;
+    /* Magenta */
+    --chart-3: 216 100% 22%;
+    /* Deep Blue */
+    --chart-4: 0 0% 91%;
+    /* Light Grey */
+    --chart-5: 221 71% 14%;
+    /* Dark Navy */
+  }
+
+  .dark {
+    /* Dark Theme - Original Color Palette */
+    --background: 221 71% 14%;
+    /* #0A1A3C - Dark Navy */
+    --foreground: 0 0% 100%;
+    /* #FFFFFF - White */
+
+    --card: 222 58% 18%;
+    /* #11224D - Slightly lighter navy for cards */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 222 58% 18%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 42 99% 47%;
+    /* #F0A901 - Golden Yellow */
+    --primary-foreground: 221 71% 14%;
+    /* Dark Navy text on yellow */
+
+    --secondary: 330 100% 28%;
+    /* #910048 - Magenta */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 222 47% 20%;
+    /* Muted dark blue */
+    --muted-foreground: 215 20% 65%;
 
     --accent: 330 100% 28%;
     /* #910048 - Magenta */
@@ -37,19 +91,18 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 216 50% 30%;
-    --input: 216 50% 30%;
+    --border: 217 33% 25%;
+    /* Blue-tinted border */
+    --input: 217 33% 25%;
     --ring: 42 99% 47%;
     /* Golden Yellow */
-
-    --radius: 0.8rem;
 
     --chart-1: 42 99% 47%;
     /* Golden Yellow */
     --chart-2: 330 100% 28%;
     /* Magenta */
-    --chart-3: 221 71% 14%;
-    /* Dark Navy */
+    --chart-3: 216 100% 22%;
+    /* Deep Blue */
     --chart-4: 0 0% 91%;
     /* Light Grey */
     --chart-5: 0 0% 100%;

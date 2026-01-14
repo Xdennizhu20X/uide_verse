@@ -2,29 +2,46 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { ThumbsUp, MessageCircle, Leaf, Link } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ThumbsUp, MessageCircle, Leaf, Link, Edit, Trash2, Calendar, Eye, Share2, ArrowLeft } from 'lucide-react';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, increment, arrayUnion, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, increment, arrayUnion, setDoc, deleteDoc } from 'firebase/firestore';
 import type { Project, Comment } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProjectDetailsProps {
   project: Project;
 }
 
 export function ProjectDetails({ project }: ProjectDetailsProps) {
+  const router = useRouter();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [likes, setLikes] = useState(project.likes || 0);
   const [hasLiked, setHasLiked] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Check if current user is the author
+  const isAuthor = user?.email && project.author?.includes(user.email);
 
   useEffect(() => {
     const q = query(collection(db, 'comments'), where('projectId', '==', project.id), orderBy('createdAt', 'desc'));
@@ -83,76 +100,211 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
 
     const authorProjectsQuery = query(collection(db, "projects"), where("authors", "array-contains", project.author));
     const authorProjectsSnapshot = await getDocs(authorProjectsQuery);
-    
+
     let totalLikes = 0;
     authorProjectsSnapshot.forEach(doc => {
-        totalLikes += doc.data().likes || 0;
+      totalLikes += doc.data().likes || 0;
     });
 
     if (totalLikes >= 10) {
-        await setDoc(doc(db, "users", project.authorId, "badges", "10-likes"), { unlockedAt: new Date() });
+      await setDoc(doc(db, "users", project.authorId, "badges", "10-likes"), { unlockedAt: new Date() });
+    }
+  };
+
+  const handleEdit = () => {
+    router.push(`/submit-project?edit=${project.id}`);
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      // Delete the project
+      await deleteDoc(doc(db, 'projects', project.id));
+
+      // Delete associated comments
+      const commentsQuery = query(collection(db, 'comments'), where('projectId', '==', project.id));
+      const commentsSnapshot = await getDocs(commentsQuery);
+      commentsSnapshot.forEach(async (commentDoc) => {
+        await deleteDoc(doc(db, 'comments', commentDoc.id));
+      });
+
+      toast({
+        title: "Proyecto eliminado",
+        description: "El proyecto ha sido eliminado correctamente.",
+      });
+
+      router.push('/projects');
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el proyecto. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-EC', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
     }
   };
 
   return (
-    <div className="container py-12 md:py-16">
+    <div className="container py-8 md:py-12">
+      {/* Back Button */}
+      <AnimatedWrapper>
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="mb-6"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+        </Button>
+      </AnimatedWrapper>
+
       <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
           <AnimatedWrapper>
-            <Card className="mb-8">
+            <Card className="overflow-hidden">
+              {/* Hero Image */}
+              <div className="relative">
                 <Image
-                  src={project.imageUrls[0]}
+                  src={project.imageUrls[0] || 'https://placehold.co/1200x675.png'}
                   alt={project.title}
                   width={1200}
                   height={675}
-                  className="rounded-t-lg object-cover w-full aspect-video"
-                   data-ai-hint="project screenshot technology"
+                  className="w-full aspect-video object-cover"
                 />
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex gap-2 mb-2">
-                      <Badge>{project.category}</Badge>
-                      {project.isEco && (
-                        <Badge variant="secondary" className="bg-accent/90 text-accent-foreground">
-                          <Leaf className="mr-2 h-4 w-4" />
-                          Ecológico
-                        </Badge>
-                      )}
+                {/* Overlay badges */}
+                <div className="absolute top-4 left-4 flex gap-2">
+                  <Badge className="bg-card/90 backdrop-blur-sm text-foreground shadow-md">
+                    {project.category}
+                  </Badge>
+                  {project.isEco && (
+                    <Badge className="bg-green-600/90 backdrop-blur-sm text-white shadow-md">
+                      <Leaf className="mr-1 h-3 w-3" />
+                      Ecológico
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <CardHeader className="pb-4">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                  <div className="space-y-2">
+                    <CardTitle className="text-3xl md:text-4xl font-headline leading-tight">
+                      {project.title}
+                    </CardTitle>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        {formatDate(project.date)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <ThumbsUp className="h-4 w-4" />
+                        {likes} likes
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageCircle className="h-4 w-4" />
+                        {comments.length} comentarios
+                      </span>
                     </div>
-                    <CardTitle className="text-4xl font-headline">{project.title}</CardTitle>
                   </div>
+
+                  {/* Author Actions */}
+                  {isAuthor && (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleEdit}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Eliminar
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">{project.description}</p>
-                <Separator className="my-6" />
-                <h3 className="font-semibold mb-4">Tecnologías Utilizadas</h3>
-                <div className="flex flex-wrap gap-2">
-                  {project.technologies.map((tech) => (
-                    <Badge key={tech} variant="secondary">{tech}</Badge>
-                  ))}
+
+              <CardContent className="space-y-6">
+                {/* Description */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-3">Descripción del Proyecto</h3>
+                  <p className="text-foreground/80 leading-relaxed whitespace-pre-line">
+                    {project.description}
+                  </p>
                 </div>
-                <Separator className="my-6" />
-                <h3 className="font-semibold mb-4">Galería de Imágenes</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {project.imageUrls.slice(1).map((url, index) => (
-                    <Image
-                      key={index}
-                      src={url}
-                      alt={`${project.title} - Imagen ${index + 2}`}
-                      width={400}
-                      height={300}
-                      className="rounded-lg object-cover w-full aspect-video"
-                    />
-                  ))}
+
+                <Separator />
+
+                {/* Technologies */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-3">Tecnologías Utilizadas</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {project.technologies.map((tech) => (
+                      <Badge
+                        key={tech}
+                        className="bg-secondary text-white border-secondary"
+                      >
+                        {tech}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Gallery */}
+                {project.imageUrls.length > 1 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="font-semibold text-lg mb-3">Galería de Imágenes</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {project.imageUrls.slice(1).map((url, index) => (
+                          <Image
+                            key={index}
+                            src={url}
+                            alt={`${project.title} - Imagen ${index + 2}`}
+                            width={400}
+                            height={300}
+                            className="rounded-lg object-cover w-full aspect-video hover:scale-105 transition-transform cursor-pointer"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* PDF Report */}
                 {project.developmentPdfUrl && (
                   <>
-                    <Separator className="my-6" />
-                    <h3 className="font-semibold mb-4">Informe de Desarrollo</h3>
-                    <div className="w-full h-[800px]">
-                      <iframe src={project.developmentPdfUrl} width="100%" height="100%" className="rounded-md border" />
+                    <Separator />
+                    <div>
+                      <h3 className="font-semibold text-lg mb-3">Informe de Desarrollo</h3>
+                      <div className="w-full h-[600px] rounded-lg overflow-hidden border">
+                        <iframe
+                          src={project.developmentPdfUrl}
+                          width="100%"
+                          height="100%"
+                          className="bg-white"
+                        />
+                      </div>
                     </div>
                   </>
                 )}
@@ -160,122 +312,226 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
             </Card>
           </AnimatedWrapper>
 
-          
+          {/* Comments Section */}
+          <AnimatedWrapper delay={200}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5" />
+                  Comentarios ({comments.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Comment Form */}
+                {user ? (
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.photoURL || 'https://placehold.co/40x40.png'} />
+                        <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <Textarea
+                          placeholder="Añade tu comentario o sugerencia..."
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button onClick={handleCommentSubmit} disabled={!newComment.trim()}>
+                        Publicar Comentario
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-muted/50 rounded-lg p-4 text-center">
+                    <p className='text-muted-foreground'>
+                      <Button variant="link" onClick={() => router.push('/login')}>
+                        Inicia sesión
+                      </Button>
+                      para dejar un comentario.
+                    </p>
+                  </div>
+                )}
+
+                <Separator />
+
+                {/* Comments List */}
+                <div className="space-y-4">
+                  {comments.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-6">
+                      Aún no hay comentarios. ¡Sé el primero en comentar!
+                    </p>
+                  ) : (
+                    comments.map(comment => (
+                      <div key={comment.id} className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={comment.authorPhotoURL || 'https://placehold.co/40x40.png'} alt={comment.author} />
+                          <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold">{comment.author}</p>
+                            <span className="text-xs text-muted-foreground">
+                              {comment.createdAt?.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </span>
+                          </div>
+                          <p className="text-foreground/80">{comment.text}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </AnimatedWrapper>
         </div>
 
-        <div className="lg:col-span-1 space-y-8">
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Author Card */}
           <AnimatedWrapper delay={100}>
             <Card>
               <CardHeader>
                 <CardTitle>Autor</CardTitle>
               </CardHeader>
-              <CardContent className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={project.avatar} alt={project.author} />
-                  <AvatarFallback>{project.author.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-bold text-lg">{project.author}</p>
-                  <p className="text-sm text-muted-foreground">Publicado el {project.date}</p>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16 border-2 border-primary">
+                    <AvatarImage src={project.avatar} alt={project.author} />
+                    <AvatarFallback>{project.author?.charAt(0) || 'U'}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-bold text-lg">{project.author}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </AnimatedWrapper>
-          {(project.website || project.githubRepo) && (
-          <AnimatedWrapper delay={300}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Recursos Adicionales</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-5">
-                {project.website && (
-                  <a href={project.website} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" className="w-full">
-                      <Link className="mr-2 h-4 w-4" />
-                      Página Web
-                    </Button>
-                  </a>
-                )}
-                {project.githubRepo && (
-                  <a href={project.githubRepo} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" className="w-full">
-                      <svg className="mr-2 h-4 w-4" viewBox="0 0 16 16" version="1.1" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-                      Repositorio de GitHub
-                    </Button>
-                  </a>
-                )}
-              </CardContent>
-            </Card>
-          </AnimatedWrapper>
-          )}
 
-          <AnimatedWrapper delay={300}>
+          {/* Publication Date */}
+          <AnimatedWrapper delay={150}>
             <Card>
               <CardHeader>
-                <CardTitle>Dar Feedback</CardTitle>
+                <CardTitle>Fecha de Publicación</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">¿Te ha resultado útil este proyecto?</p>
-                <Button className="w-full" onClick={handleLike} disabled={hasLiked}>
-                  <ThumbsUp className="mr-2 h-4 w-4" /> {likes} Me gusta el Proyecto
-                </Button>
+                <div className="flex items-center gap-3 text-lg">
+                  <Calendar className="h-5 w-5 text-secondary" />
+                  <span className="font-medium text-secondary">{formatDate(project.date)}</span>
+                </div>
               </CardContent>
             </Card>
           </AnimatedWrapper>
+
+          {/* Like Button */}
           <AnimatedWrapper delay={200}>
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-6 w-6" />
-                  Comentarios y Sugerencias
-                </CardTitle>
+                <CardTitle>¿Te gustó este proyecto?</CardTitle>
               </CardHeader>
               <CardContent>
-                {user ? (
-                  <div className="space-y-4">
-                    <div className="flex gap-4">
-                      <Avatar>
-                        <AvatarImage src={user.photoURL || 'https://placehold.co/40x40.png'} />
-                        <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                      </Avatar>
-                      <Textarea 
-                        placeholder="Añade tu comentario o sugerencia..." 
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <Button onClick={handleCommentSubmit} disabled={!newComment.trim()}>Publicar Comentario</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className='text-muted-foreground'>Debes iniciar sesión para dejar un comentario.</p>
+                <Button
+                  className="w-full"
+                  onClick={handleLike}
+                  disabled={hasLiked || !user}
+                  variant={hasLiked ? "secondary" : "default"}
+                >
+                  <ThumbsUp className={`mr-2 h-4 w-4 ${hasLiked ? 'fill-current' : ''}`} />
+                  {hasLiked ? 'Ya te gusta' : `${likes} Me gusta`}
+                </Button>
+                {!user && (
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Inicia sesión para dar like
+                  </p>
                 )}
-                <Separator className="my-6" />
-                <div className="space-y-6">
-                  {comments.map(comment => (
-                    <div key={comment.id} className="flex gap-4">
-                      <Avatar>
-                        <AvatarImage src={comment.authorPhotoURL || `https://placehold.co/40x40.png`} alt={comment.author} />
-                        <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="flex items-center gap-2">
-                            <p className="font-semibold">{comment.author}</p>
-                            <p className="text-xs text-muted-foreground">
-                                {comment.createdAt?.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
-                            </p>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{comment.text}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              </CardContent>
+            </Card>
+          </AnimatedWrapper>
+
+          {/* Resources */}
+          {(project.website || project.githubRepo) && (
+            <AnimatedWrapper delay={300}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recursos</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {project.website && (
+                    <a href={project.website} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" className="w-full justify-start">
+                        <Link className="mr-2 h-4 w-4" />
+                        Ver Página Web
+                      </Button>
+                    </a>
+                  )}
+                  {project.githubRepo && (
+                    <a href={project.githubRepo} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" className="w-full justify-start">
+                        <svg className="mr-2 h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+                          <path fillRule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                        </svg>
+                        Ver en GitHub
+                      </Button>
+                    </a>
+                  )}
+                </CardContent>
+              </Card>
+            </AnimatedWrapper>
+          )}
+
+          {/* Share */}
+          <AnimatedWrapper delay={400}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Compartir</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    toast({
+                      title: "Enlace copiado",
+                      description: "El enlace del proyecto se ha copiado al portapapeles.",
+                    });
+                  }}
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Copiar enlace
+                </Button>
               </CardContent>
             </Card>
           </AnimatedWrapper>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar proyecto?</DialogTitle>
+            <DialogDescription>
+              Esta acción no se puede deshacer. El proyecto "{project.title}" y todos sus comentarios serán eliminados permanentemente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Eliminando...' : 'Eliminar proyecto'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
