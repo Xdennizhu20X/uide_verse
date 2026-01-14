@@ -75,7 +75,7 @@ export default function Home() {
               </AnimatedWrapper>
               <AnimatedWrapper delay={200}>
                 <div className="flex flex-col gap-4 min-[400px]:flex-row justify-center">
-                  <Button asChild size="lg" className="bg-accent-gold hover:bg-amber-400 text-primary font-bold rounded-full shadow-lg">
+                  <Button asChild size="lg" className="bg-accent-gold hover:bg-amber-400 text-white font-bold rounded-full shadow-lg">
                     <Link href="/projects">
                       Explorar Proyectos <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
@@ -175,9 +175,9 @@ export default function Home() {
             </div>
             <div className="mt-12 text-center">
               <Button asChild size="lg">
-                  <Link href="/projects">
-                    Ver Todos los Proyectos <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
+                <Link href="/projects">
+                  Ver Todos los Proyectos <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
           </div>
