@@ -23,12 +23,17 @@ export interface User {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  isUideStudent?: boolean;
+  career?: string;
+  skills?: string[];
+  role?: 'student' | 'viewer';
 }
 
 export interface Comment {
-    id: string;
-    author: string;
-    text: string;
-    createdAt: Date;
-    authorPhotoURL?: string;
+  id: string;
+  author: string;
+  text: string;
+  createdAt: Date;
+  authorPhotoURL?: string;
+  parentId?: string | null;
 }

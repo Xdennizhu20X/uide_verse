@@ -39,40 +39,57 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   const [hasLiked, setHasLiked] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   // Check if current user is the author
   const isAuthor = user?.email && project.author?.includes(user.email);
 
   useEffect(() => {
-    const q = query(collection(db, 'comments'), where('projectId', '==', project.id), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    // Comments listener
+    const commentsQuery = query(
+      collection(db, 'comments'),
+      where('projectId', '==', project.id),
+      orderBy('createdAt', 'asc')
+    );
+
+    const unsubscribeComments = onSnapshot(commentsQuery, (querySnapshot) => {
       const fetchedComments: Comment[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
         fetchedComments.push({
-          id: doc.id,
+          id: docSnap.id,
           author: data.author,
           text: data.text,
           createdAt: data.createdAt?.toDate(),
           authorPhotoURL: data.authorPhotoURL,
+          parentId: data.parentId || null,
         });
       });
       setComments(fetchedComments);
+    }, (error) => {
+      console.error("Error fetching comments:", error);
     });
 
-    if (user) {
-      const projectRef = doc(db, "projects", project.id);
-      const unsub = onSnapshot(projectRef, (doc) => {
-        const data = doc.data();
-        if (data && data.likedBy && data.likedBy.includes(user.uid)) {
-          setHasLiked(true);
-        }
-        setLikes(data?.likes || 0);
-      });
-      return () => unsub();
-    }
+    return () => unsubscribeComments();
+  }, [project.id]);
 
-    return () => unsubscribe();
+  // Separate useEffect for likes
+  useEffect(() => {
+    if (!user) return;
+
+    const projectRef = doc(db, "projects", project.id);
+    const unsubscribeLikes = onSnapshot(projectRef, (docSnap) => {
+      const data = docSnap.data();
+      if (data && data.likedBy && data.likedBy.includes(user.uid)) {
+        setHasLiked(true);
+      }
+      setLikes(data?.likes || 0);
+    }, (error) => {
+      console.error("Error fetching project likes:", error);
+    });
+
+    return () => unsubscribeLikes();
   }, [project.id, user]);
 
   const handleCommentSubmit = async () => {
@@ -84,9 +101,26 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
       author: user.displayName || 'Anónimo',
       authorPhotoURL: user.photoURL || 'https://placehold.co/40x40.png',
       createdAt: serverTimestamp(),
+      parentId: null,
     });
 
     setNewComment('');
+  };
+
+  const handleReplySubmit = async (parentCommentId: string) => {
+    if (!replyText.trim() || !user) return;
+
+    await addDoc(collection(db, 'comments'), {
+      projectId: project.id,
+      text: replyText,
+      author: user.displayName || 'Anónimo',
+      authorPhotoURL: user.photoURL || 'https://placehold.co/40x40.png',
+      createdAt: serverTimestamp(),
+      parentId: parentCommentId,
+    });
+
+    setReplyText('');
+    setReplyingTo(null);
   };
 
   const handleLike = async () => {
@@ -365,23 +399,94 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                       Aún no hay comentarios. ¡Sé el primero en comentar!
                     </p>
                   ) : (
-                    comments.map(comment => (
-                      <div key={comment.id} className="flex gap-4 p-4 bg-muted/30 rounded-lg">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={comment.authorPhotoURL || 'https://placehold.co/40x40.png'} alt={comment.author} />
-                          <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold">{comment.author}</p>
-                            <span className="text-xs text-muted-foreground">
-                              {comment.createdAt?.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
-                            </span>
+                    <>
+                      {/* Parent comments (no parentId) */}
+                      {comments.filter(c => !c.parentId).map(comment => (
+                        <div key={comment.id} className="space-y-3">
+                          {/* Parent comment */}
+                          <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={comment.authorPhotoURL || 'https://placehold.co/40x40.png'} alt={comment.author} />
+                              <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold">{comment.author}</p>
+                                <span className="text-xs text-muted-foreground">
+                                  {comment.createdAt?.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                </span>
+                              </div>
+                              <p className="text-foreground/80">{comment.text}</p>
+                              {user && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="mt-2 text-xs h-7 px-2"
+                                  onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                                >
+                                  <MessageCircle className="h-3 w-3 mr-1" />
+                                  Responder
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-foreground/80">{comment.text}</p>
+
+                          {/* Reply form */}
+                          {replyingTo === comment.id && user && (
+                            <div className="ml-12 flex gap-3 items-start">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={user.photoURL || 'https://placehold.co/40x40.png'} />
+                                <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 space-y-2">
+                                <Textarea
+                                  placeholder={`Responder a ${comment.author}...`}
+                                  value={replyText}
+                                  onChange={(e) => setReplyText(e.target.value)}
+                                  rows={2}
+                                  className="text-sm"
+                                />
+                                <div className="flex gap-2 justify-end">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => { setReplyingTo(null); setReplyText(''); }}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleReplySubmit(comment.id)}
+                                    disabled={!replyText.trim()}
+                                  >
+                                    Responder
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Replies to this comment */}
+                          {comments.filter(reply => reply.parentId === comment.id).map(reply => (
+                            <div key={reply.id} className="ml-12 flex gap-3 p-3 bg-muted/20 rounded-lg border-l-2 border-primary/30">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={reply.authorPhotoURL || 'https://placehold.co/40x40.png'} alt={reply.author} />
+                                <AvatarFallback>{reply.author.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="font-semibold text-sm">{reply.author}</p>
+                                  <span className="text-xs text-muted-foreground">
+                                    {reply.createdAt?.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                  </span>
+                                </div>
+                                <p className="text-foreground/80 text-sm">{reply.text}</p>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </>
                   )}
                 </div>
               </CardContent>

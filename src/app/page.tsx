@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, BrainCircuit, Leaf, MessageSquare } from 'lucide-react';
+import { ArrowRight, BrainCircuit, Leaf, MessageSquare, Sparkles } from 'lucide-react';
 import { ProjectCard } from '@/components/project-card';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 import { useState, useEffect } from 'react';
@@ -91,65 +91,69 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="benefits" className="w-full py-12 md:py-24 lg:py-32">
+        <section id="benefits" className="w-full min-h-screen flex items-center py-16">
           <div className="container px-4 md:px-6">
-            <AnimatedWrapper>
-              <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                <div className="space-y-2">
-                  <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm text-secondary-foreground">¿Por qué unirte?</div>
-                  <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Un Universo de Oportunidades</h2>
-                  <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                    Uideverse Hub es más que una galería. Es una comunidad para aprender, compartir y crecer.
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+              {/* Left - Brutalist Typography */}
+              <AnimatedWrapper>
+                <div>
+                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-black font-headline text-primary leading-none tracking-tighter">
+                    ¿POR QUÉ
+                  </h2>
+                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-black font-headline text-secondary leading-none tracking-tighter">
+                    UNIRTE?
+                  </h2>
+                  <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-md leading-relaxed">
+                    Uideverse Hub es más que una galería. Es donde el talento universitario se transforma en impacto real.
                   </p>
+                  <div className="mt-8">
+                    <Button asChild size="lg" className="text-base px-6 py-5 rounded-none border-2 border-primary bg-primary text-white hover:bg-transparent hover:text-primary transition-all">
+                      <Link href="/register">
+                        Únete Ahora <ArrowRight className="ml-2 h-5 w-5" />
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
+              </AnimatedWrapper>
+
+              {/* Right - Benefits cards */}
+              <div className="space-y-6">
+                <AnimatedWrapper delay={200}>
+                  <div className="group p-6 border-2 border-border hover:border-primary transition-colors duration-300 flex gap-5">
+                    <BrainCircuit className="h-10 w-10 text-primary shrink-0" />
+                    <div>
+                      <h3 className="text-xl font-bold mb-2">Muestra tu Talento</h3>
+                      <p className="text-muted-foreground text-sm">
+                        Gana visibilidad. Deja que empresas, docentes y compañeros vean de lo que eres capaz.
+                      </p>
+                    </div>
+                  </div>
+                </AnimatedWrapper>
+
+                <AnimatedWrapper delay={400}>
+                  <div className="group p-6 border-2 border-border hover:border-secondary transition-colors duration-300 flex gap-5">
+                    <MessageSquare className="h-10 w-10 text-secondary shrink-0" />
+                    <div>
+                      <h3 className="text-xl font-bold mb-2">Colabora e Innova</h3>
+                      <p className="text-muted-foreground text-sm">
+                        Encuentra colaboradores y lleva tus proyectos al siguiente nivel.
+                      </p>
+                    </div>
+                  </div>
+                </AnimatedWrapper>
+
+                <AnimatedWrapper delay={600}>
+                  <div className="group p-6 border-2 border-border hover:border-green-500 transition-colors duration-300 flex gap-5">
+                    <Leaf className="h-10 w-10 text-green-500 shrink-0" />
+                    <div>
+                      <h3 className="text-xl font-bold mb-2">Genera Impacto</h3>
+                      <p className="text-muted-foreground text-sm">
+                        Participa en desafíos ecológicos y contribuye a un mundo mejor.
+                      </p>
+                    </div>
+                  </div>
+                </AnimatedWrapper>
               </div>
-            </AnimatedWrapper>
-            <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 pt-12">
-              <AnimatedWrapper delay={200}>
-                <Card className="h-full transition-transform duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/10">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BrainCircuit className="h-8 w-8 text-primary" />
-                      Muestra tu Talento
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Gana visibilidad por tu arduo trabajo. Deja que empresas y compañeros vean de lo que eres capaz.
-                    </p>
-                  </CardContent>
-                </Card>
-              </AnimatedWrapper>
-              <AnimatedWrapper delay={400}>
-                <Card className="h-full transition-transform duration-300 hover:scale-105 hover:shadow-xl hover:shadow-secondary/10">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="h-8 w-8 text-secondary" />
-                      Colabora e Innova
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Encuentra colaboradores, recibe feedback y lleva tus proyectos al siguiente nivel con el apoyo de la comunidad.
-                    </p>
-                  </CardContent>
-                </Card>
-              </AnimatedWrapper>
-              <AnimatedWrapper delay={600}>
-                <Card className="h-full transition-transform duration-300 hover:scale-105 hover:shadow-xl hover:shadow-accent/10">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Leaf className="h-8 w-8 text-accent" />
-                      Genera un Impacto
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Participa en desafíos, especialmente en nuestra sección EcoUide, y contribuye a un mundo mejor.
-                    </p>
-                  </CardContent>
-                </Card>
-              </AnimatedWrapper>
             </div>
           </div>
         </section>
