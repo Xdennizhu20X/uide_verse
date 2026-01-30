@@ -49,6 +49,9 @@ export default function ProjectsPage() {
             comments: [],
             isEco: data.isEcological || false,
             likes: data.likes || 0,
+            views: data.views || 0,
+            createdAt: data.createdAt || new Date().toISOString(),
+            likedBy: data.likedBy || [],
           };
         });
         setProjects(firebaseProjects);
@@ -107,20 +110,34 @@ export default function ProjectsPage() {
     if (aiKeywords.length > 0) {
       const normalizeText = (text: string) => text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+      // Helper to check contains with plural tolerance (naive Spanish singularization)
+      const flexibleContains = (content: string, term: string) => {
+        const normContent = normalizeText(content);
+        const normTerm = normalizeText(term);
+
+        if (normContent.includes(normTerm)) return true;
+        // Try removing trailing 's' (e.g., 'ecologicos' -> 'ecologico')
+        if (normTerm.endsWith('s') && normContent.includes(normTerm.slice(0, -1))) return true;
+        // Try adding trailing 's' (e.g., 'app' -> 'apps')
+        if (!normTerm.endsWith('s') && normContent.includes(normTerm + 's')) return true;
+
+        return false;
+      };
+
       tempProjects = tempProjects.filter(project => {
         // Construct a rich search string including metadata
         const ecoTerm = project.isEco ? "ecologico sostenible ambiente" : "";
-        const textContent = normalizeText(`
+        const textContent = `
           ${project.title} 
           ${project.description} 
           ${project.technologies.join(' ')} 
           ${project.category} 
           ${project.author}
           ${ecoTerm}
-        `);
+        `;
 
         // Check if AT LEAST ONE keyword matches strongly
-        return aiKeywords.some(keyword => textContent.includes(normalizeText(keyword)));
+        return aiKeywords.some(keyword => flexibleContains(textContent, keyword));
       });
     } else {
       // Do nothing based on text alone. Wait for AI keywords.

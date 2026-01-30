@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
-  cloud_name: 'dwjcqk3pc',
-  api_key: '367515565652742',
-  api_secret: '8I-NUmG8m7EdFdIZiyAzqGMVgP0',
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 export async function POST(request: Request) {
@@ -16,6 +16,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ url: result.secure_url });
   } catch (error) {
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    console.error("Cloudinary Upload Error:", error);
+    return NextResponse.json({ error: 'Upload failed', details: (error as any).message }, { status: 500 });
   }
 }

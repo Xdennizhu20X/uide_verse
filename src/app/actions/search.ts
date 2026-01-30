@@ -19,7 +19,7 @@ export async function analyzeSearchIntent(query: string): Promise<SearchIntent> 
 
     try {
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-flash", // Updated to Jan 2026 Free Tier model
             generationConfig: { responseMimeType: "application/json" }
         });
 
@@ -34,7 +34,7 @@ export async function analyzeSearchIntent(query: string): Promise<SearchIntent> 
       Instrucciones:
       1. Identifica las tecnologías mencionadas o implícitas (ej: "app" -> [Flutter, React Native], "web" -> [React, Next.js], "inteligencia" -> [Python, TensorFlow]).
       2. Asigna una o más "categories" si el usuario menciona algo relacionado.
-      3. Extrae "keywords" CENTRALES. Si dice "estoy buscando un proyecto shuar", la keyword es "shuar". IGNORA palabras vacías como: "estoy", "buscando", "un", "proyecto", "sobre", "quiero", "ver", "necesito", "tienes".
+      3. Extrae "keywords" CENTRALES. Si dice "estoy buscando un proyecto shuar", la keyword es "shuar". IGNORA palabras vacías.
       4. Si el término es genérico como "ecologico", incluye sinónimos como "sostenible", "ambiente", "reciclaje".
       
       Retorna un objeto JSON con esta estructura:
@@ -57,7 +57,8 @@ export async function analyzeSearchIntent(query: string): Promise<SearchIntent> 
 
         // Improved Fallback: Tokenize the query
         // Remove stop words and split into individual keywords
-        const stopWords = ["el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "que", "en", "y", "a", "o", "estoy", "buscando", "quiero", "ver", "proyecto", "sobre", "necesito"];
+        const stopWords = ["el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "que", "en", "y", "a", "o",
+            "estoy", "buscando", "quiero", "ver", "proyecto", "proyectos", "sobre", "necesito", "tienes", "busco", "algun", "alguno", "hay"];
         const fallbackKeywords = query
             .toLowerCase()
             .split(/\s+/)

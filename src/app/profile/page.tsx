@@ -21,11 +21,12 @@ import {
 import { ProjectCard } from "@/components/project-card";
 import { ProjectCardSkeleton } from "@/components/project-card-skeleton";
 import { AnimatedWrapper } from "@/components/animated-wrapper";
-import { User, Award, GitMerge, Edit, Star, Upload, Leaf, Heart, MessageSquare, FolderOpen, Calendar, Save, X } from "lucide-react";
+import { Award, Edit, FolderOpen, Heart, Save, Upload, X, Users, MessageSquare, Leaf, Star, GitMerge } from 'lucide-react';
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs, limit, startAfter, setDoc, updateDoc } from "firebase/firestore";
+import { updateProfile } from 'firebase/auth';
 import type { Project } from "@/lib/types";
 
 const PROJECTS_PER_PAGE = 6;
@@ -49,13 +50,19 @@ export default function ProfilePage() {
   const [hasMore, setHasMore] = useState(true);
   const [userBadges, setUserBadges] = useState<any[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const [editForm, setEditForm] = useState({
     firstName: '',
     lastName: '',
     biography: '',
     technologies: '',
   });
-  const [isSaving, setIsSaving] = useState(false);
+
+  const [userCollaborations, setUserCollaborations] = useState<any[]>([]);
+  const [userTopics, setUserTopics] = useState<any[]>([]);
+
 
   // Calculate stats
   const totalProjects = userProjects.length;
@@ -113,6 +120,9 @@ export default function ProfilePage() {
           comments: [],
           isEco: data.isEcological || false,
           likes: data.likes || 0,
+          createdAt: data.createdAt || new Date().toISOString(),
+          views: data.views || 0,
+          likedBy: data.likedBy || [],
         });
       });
 
@@ -152,16 +162,38 @@ export default function ProfilePage() {
       };
 
       const fetchUserBadges = async () => {
-        const badgesQuery = query(collection(db, 'users', user.uid, 'badges'));
-        const querySnapshot = await getDocs(badgesQuery);
-        const unlockedBadges = querySnapshot.docs.map(doc => doc.id);
+        const badgesRef = collection(db, 'users', user.uid, 'badges');
+        const badgesSnapshot = await getDocs(badgesRef);
+        const earnedBadges = badgesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        const badges = allBadges.map(badge => ({
-          ...badge,
-          unlocked: unlockedBadges.includes(badge.id),
+        const mergedBadges = allBadges.map(def => {
+          const earned = earnedBadges.find(b => b.id === def.id);
+          return { ...def, unlocked: !!earned, unlockedAt: earned?.unlockedAt };
+        });
+        setUserBadges(mergedBadges);
+        return earnedBadges.map(b => b.id); // Return IDs of unlocked badges for checkAndAwardBadges
+      };
+
+      const fetchUserCollaborations = async () => {
+        const collabsQuery = query(collection(db, 'collaborations'), where('authorId', '==', user.uid));
+        const collabsSnapshot = await getDocs(collabsQuery);
+        const fetchedCollabs = collabsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          type: 'collaboration',
+          ...doc.data()
         }));
-        setUserBadges(badges);
-        return unlockedBadges;
+        setUserCollaborations(fetchedCollabs);
+      };
+
+      const fetchUserTopics = async () => {
+        const topicsQuery = query(collection(db, 'forum_topics'), where('authorId', '==', user.uid));
+        const topicsSnapshot = await getDocs(topicsQuery);
+        const fetchedTopics = topicsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          type: 'topic',
+          ...doc.data()
+        }));
+        setUserTopics(fetchedTopics);
       };
 
       const checkAndAwardBadges = async (unlockedBadges: string[]) => {
@@ -196,17 +228,59 @@ export default function ProfilePage() {
 
     setIsSaving(true);
     try {
+      let photoURL = user.photoURL;
+
+      // Upload image if selected
+      if (selectedFile) {
+        const reader = new FileReader();
+        reader.readAsDataURL(selectedFile);
+
+        await new Promise<void>((resolve, reject) => {
+          reader.onloadend = async () => {
+            try {
+              const base64data = reader.result;
+              const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file: base64data }),
+              });
+
+              if (!response.ok) throw new Error('Upload failed');
+
+              const data = await response.json();
+              photoURL = data.url;
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          };
+          reader.onerror = reject;
+        });
+      }
+
       const technologies = editForm.technologies
         .split(',')
         .map(t => t.trim())
         .filter(t => t.length > 0);
 
-      await updateDoc(doc(db, 'users', user.uid), {
+      const updatedData = {
         firstName: editForm.firstName,
         lastName: editForm.lastName,
         biography: editForm.biography,
         technologies: technologies,
-      });
+        ...(photoURL !== user.photoURL && { photoURL }), // Only add if changed (though standard Firestore user doc might not use photoURL field directly, usually handled by Auth, but good to sync)
+      };
+
+      // Update Firestore User Doc
+      await updateDoc(doc(db, 'users', user.uid), updatedData);
+
+      // Update Firebase Auth Profile
+      if (photoURL !== user.photoURL || editForm.firstName !== user.displayName?.split(' ')[0]) {
+        await updateProfile(user, {
+          displayName: `${editForm.firstName} ${editForm.lastName}`,
+          photoURL: photoURL
+        });
+      }
 
       setUserProfile({
         ...userProfile,
@@ -222,6 +296,7 @@ export default function ProfilePage() {
       });
 
       setIsEditDialogOpen(false);
+      setSelectedFile(null); // Reset selection
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({
@@ -408,47 +483,57 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Mocked activity items */}
-                  <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg">
-                    <div className="p-2 rounded-full bg-green-500/10">
-                      <Upload className="h-4 w-4 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Publicaste un nuevo proyecto</p>
-                      <p className="text-sm text-muted-foreground">Sistema Inteligente de Gestión de Residuos</p>
-                      <p className="text-xs text-secondary mt-1">Hace 2 días</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg">
-                    <div className="p-2 rounded-full bg-red-500/10">
-                      <Heart className="h-4 w-4 text-red-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Recibiste un like</p>
-                      <p className="text-sm text-muted-foreground">En tu proyecto "App de Monitoreo Ambiental"</p>
-                      <p className="text-xs text-secondary mt-1">Hace 3 días</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg">
-                    <div className="p-2 rounded-full bg-blue-500/10">
-                      <MessageSquare className="h-4 w-4 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Nuevo comentario</p>
-                      <p className="text-sm text-muted-foreground">Carlos López comentó en tu proyecto</p>
-                      <p className="text-xs text-secondary mt-1">Hace 5 días</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg">
-                    <div className="p-2 rounded-full bg-yellow-500/10">
-                      <Award className="h-4 w-4 text-yellow-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium">¡Nueva insignia desbloqueada!</p>
-                      <p className="text-sm text-muted-foreground">Obtuviste la insignia "Primer Proyecto"</p>
-                      <p className="text-xs text-secondary mt-1">Hace 1 semana</p>
-                    </div>
-                  </div>
+                  {(() => {
+                    const allActivity = [
+                      ...userProjects.map(p => ({ ...p, type: 'project', date: p.createdAt })),
+                      ...userBadges.filter(b => b.unlocked).map(b => ({ ...b, type: 'badge', date: b.unlockedAt?.toDate ? b.unlockedAt.toDate() : b.unlockedAt })), // Handle timestamp conversion
+                      ...userCollaborations.map(c => ({ ...c, type: 'collaboration', date: c.createdAt })),
+                      ...userTopics.map(t => ({ ...t, type: 'topic', date: t.createdAt }))
+                    ].sort((a, b) => {
+                      const dateA = new Date(a.date || 0).getTime();
+                      const dateB = new Date(b.date || 0).getTime();
+                      return dateB - dateA;
+                    });
+
+                    if (allActivity.length === 0) {
+                      return <p className="text-muted-foreground text-center py-8">No hay actividad reciente.</p>;
+                    }
+
+                    return allActivity.slice(0, 10).map((item: any) => (
+                      <div key={`${item.type}-${item.id}`} className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg">
+                        {/* Icon Logic */}
+                        <div className={`p-2 rounded-full ${item.type === 'project' ? 'bg-green-500/10' :
+                          item.type === 'badge' ? 'bg-yellow-500/10' :
+                            item.type === 'collaboration' ? 'bg-blue-500/10' :
+                              'bg-purple-500/10'
+                          }`}>
+                          {item.type === 'project' && <Upload className="h-4 w-4 text-green-500" />}
+                          {item.type === 'badge' && <Award className="h-4 w-4 text-yellow-500" />}
+                          {item.type === 'collaboration' && <Users className="h-4 w-4 text-blue-500" />}
+                          {item.type === 'topic' && <MessageSquare className="h-4 w-4 text-purple-500" />}
+                        </div>
+
+                        {/* Content Logic */}
+                        <div>
+                          <p className="font-medium">
+                            {item.type === 'project' && 'Publicaste un nuevo proyecto'}
+                            {item.type === 'badge' && '¡Nueva insignia desbloqueada!'}
+                            {item.type === 'collaboration' && 'Abriste una colaboración'}
+                            {item.type === 'topic' && 'Publicaste en el foro'}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.type === 'project' && item.title}
+                            {item.type === 'badge' && `Obtuviste la insignia "${item.name}"`}
+                            {item.type === 'collaboration' && item.title}
+                            {item.type === 'topic' && item.title}
+                          </p>
+                          <p className="text-xs text-secondary mt-1">
+                            {item.date ? new Date(item.date).toLocaleDateString() : 'Recientemente'}
+                          </p>
+                        </div>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </CardContent>
             </Card>
@@ -466,6 +551,25 @@ export default function ProfilePage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="flex flex-col items-center gap-4 mb-4">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={selectedFile ? URL.createObjectURL(selectedFile) : (user?.photoURL || '')} />
+                <AvatarFallback>{editForm.firstName?.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="picture"
+                  type="file"
+                  accept="image/*"
+                  className="w-full max-w-xs cursor-pointer"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setSelectedFile(e.target.files[0]);
+                    }
+                  }}
+                />
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Nombre</Label>

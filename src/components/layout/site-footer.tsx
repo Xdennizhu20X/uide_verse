@@ -132,11 +132,11 @@ export function SiteFooter() {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-muted-foreground text-sm">
-            © {new Date().getFullYear()} Uideverse Hub. Todos los derechos reservados.
+            © {new Date().getFullYear()} UIDeverse Pro. Todos los derechos reservados.
           </p>
           <div className="text-muted-foreground text-sm flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-green-500"></span>
-            <span>Sistema Operativo</span>
+            <span>Sistemas en línea</span>
           </div>
         </div>
       </div>

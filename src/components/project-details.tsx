@@ -17,12 +17,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ThumbsUp, MessageCircle, Leaf, Link, Edit, Trash2, Calendar, Eye, Share2, ArrowLeft } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Leaf, Link, Edit, Trash2, Calendar, Eye, Share2, ArrowLeft, Bot, Sparkles } from 'lucide-react';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, increment, arrayUnion, setDoc, deleteDoc } from 'firebase/firestore';
 import type { Project, Comment } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';
+import { summarizeProject } from '@/app/actions/summarize';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProjectDetailsProps {
@@ -41,6 +42,8 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [aiSummary, setAiSummary] = useState('');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   // Check if current user is the author
   const isAuthor = user?.email && project.author?.includes(user.email);
@@ -90,7 +93,26 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
     });
 
     return () => unsubscribeLikes();
+    return () => unsubscribeLikes();
   }, [project.id, user]);
+
+  // View Counter
+  useEffect(() => {
+    const incrementView = async () => {
+      // Simple check to prevent counting same session multiple times could be added here
+      // For now, just increment on load
+      try {
+        const projectRef = doc(db, 'projects', project.id);
+        await updateDoc(projectRef, {
+          views: increment(1)
+        });
+      } catch (error) {
+        console.error("Error incrementing views:", error);
+      }
+    };
+
+    incrementView();
+  }, [project.id]);
 
   const handleCommentSubmit = async () => {
     if (!newComment.trim() || !user) return;
@@ -142,6 +164,28 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
 
     if (totalLikes >= 10) {
       await setDoc(doc(db, "users", project.authorId, "badges", "10-likes"), { unlockedAt: new Date() });
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    setIsGeneratingSummary(true);
+    try {
+      const summary = await summarizeProject({
+        title: project.title,
+        description: project.description,
+        technologies: project.technologies,
+        category: project.category,
+        author: project.author || 'Desconocido'
+      });
+      setAiSummary(summary);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo generar el resumen.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingSummary(false);
     }
   };
 
@@ -244,7 +288,7 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        {formatDate(project.date)}
+                        {formatDate(project.date || project.createdAt)}
                       </span>
                       <span className="flex items-center gap-1">
                         <ThumbsUp className="h-4 w-4" />
@@ -255,6 +299,30 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                         {comments.length} comentarios
                       </span>
                     </div>
+
+                    {/* AI Summary Section */}
+                    {!aiSummary ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 text-primary hover:bg-primary/10 border border-primary/20 w-fit"
+                        onClick={handleGenerateSummary}
+                        disabled={isGeneratingSummary}
+                      >
+                        {isGeneratingSummary ? (
+                          <>Generando resumen...</>
+                        ) : (
+                          <><Sparkles className="mr-2 h-4 w-4" /> Generar Resumen con IA</>
+                        )}
+                      </Button>
+                    ) : (
+                      <div className="mt-2 p-3 bg-gradient-to-r from-primary/5 to-transparent border border-primary/20 rounded-lg animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center gap-2 mb-1 text-primary font-semibold text-sm">
+                          <Bot className="h-4 w-4" /> Resumen Inteligente
+                        </div>
+                        <p className="text-sm italic text-foreground/90 leading-relaxed">{aiSummary}</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Author Actions */}
@@ -525,7 +593,7 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
               <CardContent>
                 <div className="flex items-center gap-3 text-lg">
                   <Calendar className="h-5 w-5 text-secondary" />
-                  <span className="font-medium text-secondary">{formatDate(project.date)}</span>
+                  <span className="font-medium text-secondary">{formatDate(project.date || project.createdAt)}</span>
                 </div>
               </CardContent>
             </Card>

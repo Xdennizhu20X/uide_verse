@@ -15,63 +15,24 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, Heart, MessageSquare, Award, CheckCircle } from 'lucide-react';
 
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { useAuth } from '@/hooks/use-auth';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 interface Notification {
-    id: number;
+    id: string;
     type: 'collaboration' | 'like' | 'comment' | 'badge';
     title: string;
     message: string;
     avatar?: string;
     read: boolean;
-    createdAt: string;
+    createdAt: any;
+    collaborationId?: string;
 }
-
-// Mocked notifications
-const initialNotifications: Notification[] = [
-    {
-        id: 1,
-        type: 'collaboration',
-        title: 'Nueva solicitud de colaboración',
-        message: 'Carlos López quiere colaborar en tu proyecto "EcoMonitor App"',
-        avatar: 'https://placehold.co/40x40.png',
-        read: false,
-        createdAt: 'Hace 5 min',
-    },
-    {
-        id: 2,
-        type: 'like',
-        title: 'Nuevo like',
-        message: 'A María García le gustó tu proyecto "SmartGarden"',
-        avatar: 'https://placehold.co/40x40.png',
-        read: false,
-        createdAt: 'Hace 1 hora',
-    },
-    {
-        id: 3,
-        type: 'comment',
-        title: 'Nuevo comentario',
-        message: 'Ana Martínez comentó: "Excelente trabajo..."',
-        avatar: 'https://placehold.co/40x40.png',
-        read: true,
-        createdAt: 'Hace 3 horas',
-    },
-    {
-        id: 4,
-        type: 'collaboration',
-        title: 'Solicitud aceptada',
-        message: 'Pedro Sánchez aceptó tu solicitud de colaboración',
-        avatar: 'https://placehold.co/40x40.png',
-        read: true,
-        createdAt: 'Hace 1 día',
-    },
-    {
-        id: 5,
-        type: 'badge',
-        title: '¡Nueva insignia!',
-        message: 'Desbloqueaste la insignia "Eco-Guerrero"',
-        read: true,
-        createdAt: 'Hace 2 días',
-    },
-];
 
 const getIcon = (type: string) => {
     switch (type) {
@@ -89,19 +50,73 @@ const getIcon = (type: string) => {
 };
 
 export function NotificationBell() {
-    const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+    const { user } = useAuth();
+    const router = useRouter();
+    const [notifications, setNotifications] = useState<Notification[]>([]);
     const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        if (!user) {
+            setNotifications([]);
+            return;
+        }
+
+        const q = query(
+            collection(db, 'notifications'),
+            where('recipientId', '==', user.uid),
+            orderBy('createdAt', 'desc')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const notifs = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as Notification));
+            setNotifications(notifs);
+        });
+
+        return () => unsubscribe();
+    }, [user]);
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    const markAsRead = (id: number) => {
-        setNotifications(notifications.map(n =>
-            n.id === id ? { ...n, read: true } : n
-        ));
+    const markAsRead = async (id: string, redirectUrl?: string) => {
+        try {
+            const notifRef = doc(db, 'notifications', id);
+            await updateDoc(notifRef, { read: true });
+
+            if (redirectUrl) {
+                router.push(redirectUrl);
+                setOpen(false);
+            }
+        } catch (error) {
+            console.error("Error updating notification:", error);
+        }
     };
 
-    const markAllAsRead = () => {
-        setNotifications(notifications.map(n => ({ ...n, read: true })));
+    const markAllAsRead = async () => {
+        try {
+            const batch = writeBatch(db);
+            const unread = notifications.filter(n => !n.read);
+
+            unread.forEach(n => {
+                const ref = doc(db, 'notifications', n.id);
+                batch.update(ref, { read: true });
+            });
+
+            await batch.commit();
+        } catch (error) {
+            console.error("Error marking all read:", error);
+        }
+    };
+
+    const handleNotificationClick = (notification: Notification) => {
+        let url = '';
+        if (notification.type === 'collaboration' && notification.collaborationId) {
+            url = '/colaboracion';
+        }
+        // Add other types redirects if needed
+        markAsRead(notification.id, url);
     };
 
     return (
@@ -145,7 +160,7 @@ export function NotificationBell() {
                             <DropdownMenuItem
                                 key={notification.id}
                                 className={`flex items-start gap-3 p-3 cursor-pointer ${!notification.read ? 'bg-primary/5' : ''}`}
-                                onClick={() => markAsRead(notification.id)}
+                                onClick={() => handleNotificationClick(notification)}
                             >
                                 <div className="flex-shrink-0 mt-0.5">
                                     {notification.avatar ? (
@@ -167,7 +182,9 @@ export function NotificationBell() {
                                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                                         {notification.message}
                                     </p>
-                                    <p className="text-xs text-secondary mt-1">{notification.createdAt}</p>
+                                    <p className="text-xs text-secondary mt-1">
+                                        {notification.createdAt?.toDate ? formatDistanceToNow(notification.createdAt.toDate(), { addSuffix: true, locale: es }) : 'Reciente'}
+                                    </p>
                                 </div>
                                 {!notification.read && (
                                     <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-2" />

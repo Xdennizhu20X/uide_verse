@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,43 +14,71 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { MessageSquare, Plus } from 'lucide-react';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 
-// Mocked forum topics data
-const initialTopics = [
-  { id: 1, title: '¿Ideas para nuevos proyectos ecológicos?', author: 'Alice García', replies: 12, lastReply: 'hace 2 horas', tag: 'EcoUide', content: 'Estoy buscando inspiración para mi próximo proyecto ecológico. ¿Alguien tiene ideas innovadoras que podamos desarrollar juntos?' },
-  { id: 2, title: 'Ayuda con la gestión de estado en React', author: 'Bob Martínez', replies: 5, lastReply: 'hace 5 horas', tag: 'React', content: '¿Cuál es la mejor manera de manejar el estado global en una aplicación React? ¿Redux, Context API o Zustand?' },
-  { id: 3, title: 'Presentación: Mi nueva estación meteorológica IoT', author: 'Charlie López', replies: 8, lastReply: 'hace 1 día', tag: 'Presentación', content: 'Quiero compartir mi proyecto de estación meteorológica usando Arduino y sensores DHT22. ¡Pueden ver las fotos adjuntas!' },
-  { id: 4, title: 'Mejores prácticas para el diseño de API REST', author: 'Diana Rodríguez', replies: 25, lastReply: 'hace 3 días', tag: 'Discusión', content: 'Abramos un debate sobre las mejores prácticas para diseñar APIs REST. Versionado, naming conventions, autenticación, etc.' },
-];
+import { db } from '@/lib/firebase';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '@/hooks/use-auth';
+import type { ForumTopic } from '@/lib/types';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
 
 const tagOptions = ['EcoUide', 'React', 'Presentación', 'Discusión', 'Ayuda', 'General'];
 
 export default function ForumPage() {
   const router = useRouter();
-  const [topics, setTopics] = useState(initialTopics);
+  const { user, userData } = useAuth();
+  const { toast } = useToast();
+  const [topics, setTopics] = useState<ForumTopic[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTopic, setNewTopic] = useState({ title: '', content: '', tag: '' });
 
-  const handleCreateTopic = () => {
+  useEffect(() => {
+    const q = query(collection(db, 'forum_topics'), orderBy('lastReplyAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedTopics = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ForumTopic[];
+      setTopics(fetchedTopics);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleCreateTopic = async () => {
+    if (!user) {
+      toast({ title: "Debes iniciar sesión", variant: "destructive" });
+      return;
+    }
     if (!newTopic.title.trim() || !newTopic.content.trim() || !newTopic.tag) {
+      toast({ title: "Completa todos los campos", variant: "destructive" });
       return;
     }
 
-    const topic = {
-      id: Date.now(),
-      title: newTopic.title,
-      author: 'Usuario Actual',
-      replies: 0,
-      lastReply: 'ahora mismo',
-      tag: newTopic.tag,
-      content: newTopic.content,
-    };
+    try {
+      await addDoc(collection(db, 'forum_topics'), {
+        title: newTopic.title,
+        content: newTopic.content,
+        tag: newTopic.tag,
+        author: userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : (user.displayName || 'Usuario'),
+        authorId: user.uid,
+        authorAvatar: userData?.photoURL || user.photoURL,
+        createdAt: serverTimestamp(),
+        repliesCount: 0,
+        lastReplyAt: serverTimestamp(), // Initially same as created
+        likes: 0,
+        likedBy: []
+      });
 
-    setTopics([topic, ...topics]);
-    setNewTopic({ title: '', content: '', tag: '' });
-    setIsDialogOpen(false);
+      setNewTopic({ title: '', content: '', tag: '' });
+      setIsDialogOpen(false);
+      toast({ title: "Tema publicado con éxito" });
+    } catch (error) {
+      console.error("Error creating topic:", error);
+      toast({ title: "Error al publicar", variant: "destructive" });
+    }
   };
 
-  const handleTopicClick = (topicId: number) => {
+  const handleTopicClick = (topicId: string) => {
     router.push(`/forum/${topicId}`);
   };
 
@@ -146,7 +174,7 @@ export default function ForumPage() {
                 <TableRow
                   key={topic.id}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleTopicClick(topic.id)}
+                  onClick={() => handleTopicClick(topic.id)} // id is string now, verify router handling
                 >
                   <TableCell>
                     <div className="font-medium hover:text-primary transition-colors">{topic.title}</div>
@@ -155,8 +183,10 @@ export default function ForumPage() {
                       <span>por {topic.author}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-center">{topic.replies}</TableCell>
-                  <TableCell>{topic.lastReply}</TableCell>
+                  <TableCell className="text-center">{topic.repliesCount || 0}</TableCell>
+                  <TableCell>
+                    {topic.lastReplyAt?.seconds ? formatDistanceToNow(new Date(topic.lastReplyAt.seconds * 1000), { addSuffix: true, locale: es }) : 'Reciente'}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
