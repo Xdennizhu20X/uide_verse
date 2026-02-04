@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Project } from '@/lib/types';
-import { ArrowRight, Calendar, Heart, Leaf, MessageSquare, Users } from 'lucide-react';
+import { ArrowRight, Calendar, Heart, Leaf, MessageSquare, Eye, Sparkles } from 'lucide-react';
 import { ClientAvatar } from './client-avatar';
 
 interface ProjectCardProps {
@@ -25,35 +25,51 @@ export function ProjectCard({ project }: ProjectCardProps) {
       }
    };
 
+   // Count total authors
+   const authorCount = project.author ? project.author.split(',').length : 1;
+   const firstAuthor = project.author ? project.author.split(',')[0].trim() : 'Autor desconocido';
+   const displayAuthor = firstAuthor.split('@')[0]; // Extract username from email
+
    return (
       <Link
          href={`/projects/${project.id}`}
          className="group block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
          aria-label={`Ver proyecto: ${project.title}`}
       >
-         <Card className="h-full flex flex-col overflow-hidden transition-all duration-300 group-hover:shadow-2xl group-hover:-translate-y-1 group-hover:border-primary/50">
+         <Card className="h-full flex flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:border-primary border-2">
             {/* Image Section */}
             <CardHeader className="p-0 relative">
-               <div className="relative overflow-hidden">
+               <div className="relative overflow-hidden aspect-video">
                   <Image
                      src={project.imageUrls?.[0] || 'https://placehold.co/400x250.png'}
                      alt={`Imagen del proyecto ${project.title}`}
                      width={400}
-                     height={200}
-                     className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-105"
+                     height={250}
+                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                     priority={false}
                   />
-                  {/* Overlay gradient for better text contrast */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  {/* Overlay gradient for better contrast */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                   {/* Badges on image */}
-                  <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
-                     <Badge variant="secondary" className="bg-card/90 backdrop-blur-sm text-foreground shadow-sm">
+                  <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2">
+                     <Badge className="bg-card backdrop-blur-sm text-foreground shadow-lg border font-medium">
                         {project.category}
                      </Badge>
                      {project.isEco && (
-                        <Badge className="bg-green-600/90 backdrop-blur-sm text-white shadow-sm">
-                           <Leaf className="mr-1 h-3 w-3" aria-hidden="true" />
+                        <Badge className="bg-green-600 backdrop-blur-sm text-white shadow-lg border-green-500 font-medium">
+                           <Leaf className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                            <span>Ecológico</span>
+                        </Badge>
+                     )}
+                  </div>
+
+                  {/* Stats overlay - Appears on hover */}
+                  <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+                     {typeof project.views === 'number' && project.views > 0 && (
+                        <Badge className="bg-card backdrop-blur-sm text-foreground shadow-lg border">
+                           <Eye className="mr-1 h-3 w-3" aria-hidden="true" />
+                           {project.views}
                         </Badge>
                      )}
                   </div>
@@ -61,37 +77,38 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </CardHeader>
 
             {/* Content Section */}
-            <CardContent className="flex-grow p-4 space-y-3">
-               {/* Title */}
-               <CardTitle className="text-lg font-bold font-headline leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+            <CardContent className="flex-grow p-5 space-y-3">
+               {/* Title with better line height */}
+               <CardTitle className="text-xl font-bold font-headline leading-tight line-clamp-2 group-hover:text-primary transition-colors]">
                   {project.title}
                </CardTitle>
 
-               {/* Description */}
-               <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+               {/* Description with better contrast */}
+               <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
                   {project.description}
                </p>
 
                {/* Technologies */}
-               <div className="flex flex-wrap gap-1.5" aria-label="Tecnologías utilizadas">
+               <div className="flex flex-wrap gap-2 pt-1" aria-label="Tecnologías utilizadas">
                   {project.technologies.slice(0, 3).map((tech) => (
                      <Badge
                         key={tech}
-                        className="text-xs px-2 py-0.5 font-normal bg-secondary text-white border-secondary"
+                        className="text-xs px-2.5 py-1 font-medium bg-secondary text-white border-secondary"
                      >
                         {tech}
                      </Badge>
                   ))}
                   {project.technologies.length > 3 && (
-                     <Badge className="text-xs px-2 py-0.5 font-normal bg-secondary text-white border-secondary">
+                     <Badge className="text-xs px-2.5 py-1 font-medium bg-primary text-primary-foreground border-primary">
+                        <Sparkles className="mr-1 h-3 w-3" />
                         +{project.technologies.length - 3}
                      </Badge>
                   )}
                </div>
             </CardContent>
 
-            {/* Footer Section - Improved Structure */}
-            <CardFooter className="p-4 pt-0 mt-auto">
+            {/* Footer Section */}
+            <CardFooter className="p-5 pt-0 mt-auto">
                <div className="w-full space-y-3">
                   {/* Divider */}
                   <div className="h-px bg-border" aria-hidden="true" />
@@ -100,21 +117,26 @@ export function ProjectCard({ project }: ProjectCardProps) {
                   <div className="flex items-center gap-3">
                      <ClientAvatar
                         src={project.avatar}
-                        alt={`Avatar de ${project.author}`}
-                        fallback={project.author?.charAt(0)?.toUpperCase() || 'U'}
+                        alt={`Avatar de ${displayAuthor}`}
+                        fallback={displayAuthor?.charAt(0)?.toUpperCase() || 'U'}
                      />
                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate" title={project.author}>
-                           {project.author}
+                        <p className="text-sm font-semibold truncate text-foreground" title={firstAuthor}>
+                           {displayAuthor}
                         </p>
+                        {authorCount > 1 && (
+                           <p className="text-xs text-muted-foreground">
+                              +{authorCount - 1} {authorCount === 2 ? 'colaborador' : 'colaboradores'}
+                           </p>
+                        )}
                      </div>
                   </div>
 
-                  {/* Metadata Row - Separated for accessibility */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  {/* Metadata Row */}
+                  <div className="flex items-center justify-between text-xs">
                      {/* Date */}
-                     <div className="flex items-center gap-1.5 text-secondary" aria-label={`Publicado el ${formatDate(project.date)}`}>
-                        <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+                     <div className="flex items-center gap-1.5 text-muted-foreground" aria-label={`Publicado el ${formatDate(project.date)}`}>
+                        <Calendar className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                         <time dateTime={project.date} className="font-medium">{formatDate(project.date)}</time>
                      </div>
 
@@ -122,26 +144,34 @@ export function ProjectCard({ project }: ProjectCardProps) {
                      <div className="flex items-center gap-3">
                         {/* Likes */}
                         {typeof project.likes === 'number' && (
-                           <div className="flex items-center gap-1" aria-label={`${project.likes} me gusta`}>
-                              <Heart className="h-3.5 w-3.5" aria-hidden="true" />
-                              <span>{project.likes}</span>
+                           <div
+                              className="flex items-center gap-1 text-muted-foreground"
+                              aria-label={`${project.likes} me gusta`}
+                           >
+                              <Heart className={`h-3.5 w-3.5 ${project.likes > 0 ? 'text-red-500 fill-red-500' : ''}`} aria-hidden="true" />
+                              <span className="font-medium">{project.likes}</span>
                            </div>
                         )}
 
                         {/* Comments */}
                         {project.comments && project.comments.length > 0 && (
-                           <div className="flex items-center gap-1" aria-label={`${project.comments.length} comentarios`}>
+                           <div
+                              className="flex items-center gap-1 text-muted-foreground"
+                              aria-label={`${project.comments.length} comentarios`}
+                           >
                               <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
-                              <span>{project.comments.length}</span>
+                              <span className="font-medium">{project.comments.length}</span>
                            </div>
                         )}
                      </div>
                   </div>
 
-                  {/* View More - Always visible on mobile, hover on desktop */}
-                  <div className="flex items-center justify-end text-primary text-sm font-medium md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
-                     <span>Ver proyecto</span>
-                     <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                  {/* View More */}
+                  <div className="flex items-center justify-end">
+                     <div className="flex items-center text-primary text-sm font-semibold opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 gap-1 group-hover:gap-2">
+                        <span>Ver proyecto</span>
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                     </div>
                   </div>
                </div>
             </CardFooter>

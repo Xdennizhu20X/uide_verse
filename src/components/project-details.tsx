@@ -17,7 +17,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ThumbsUp, MessageCircle, Leaf, Link, Edit, Trash2, Calendar, Eye, Share2, ArrowLeft, Bot, Sparkles } from 'lucide-react';
+import {
+  ThumbsUp,
+  MessageCircle,
+  Leaf,
+  Link,
+  Edit,
+  Trash2,
+  Calendar,
+  Eye,
+  Share2,
+  ArrowLeft,
+  Bot,
+  Sparkles,
+  Send,
+  User,
+  Github,
+  Globe,
+  FileText,
+  AlertCircle,
+  CheckCircle2,
+  Copy,
+  Heart,
+  GraduationCap
+} from 'lucide-react';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, increment, arrayUnion, setDoc, deleteDoc } from 'firebase/firestore';
@@ -44,6 +67,9 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   const [replyText, setReplyText] = useState('');
   const [aiSummary, setAiSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // Check if current user is the author
   const isAuthor = user?.email && project.author?.includes(user.email);
@@ -93,14 +119,11 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
     });
 
     return () => unsubscribeLikes();
-    return () => unsubscribeLikes();
   }, [project.id, user]);
 
   // View Counter
   useEffect(() => {
     const incrementView = async () => {
-      // Simple check to prevent counting same session multiple times could be added here
-      // For now, just increment on load
       try {
         const projectRef = doc(db, 'projects', project.id);
         await updateDoc(projectRef, {
@@ -117,53 +140,99 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   const handleCommentSubmit = async () => {
     if (!newComment.trim() || !user) return;
 
-    await addDoc(collection(db, 'comments'), {
-      projectId: project.id,
-      text: newComment,
-      author: user.displayName || 'Anónimo',
-      authorPhotoURL: user.photoURL || 'https://placehold.co/40x40.png',
-      createdAt: serverTimestamp(),
-      parentId: null,
-    });
+    setIsSubmittingComment(true);
+    try {
+      await addDoc(collection(db, 'comments'), {
+        projectId: project.id,
+        text: newComment,
+        author: user.displayName || 'Anónimo',
+        authorPhotoURL: user.photoURL || 'https://placehold.co/40x40.png',
+        createdAt: serverTimestamp(),
+        parentId: null,
+      });
 
-    setNewComment('');
+      setNewComment('');
+      toast({
+        title: "Comentario publicado",
+        description: "Tu comentario se ha publicado correctamente.",
+      });
+    } catch (error) {
+      console.error("Error posting comment:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo publicar el comentario. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingComment(false);
+    }
   };
 
   const handleReplySubmit = async (parentCommentId: string) => {
     if (!replyText.trim() || !user) return;
 
-    await addDoc(collection(db, 'comments'), {
-      projectId: project.id,
-      text: replyText,
-      author: user.displayName || 'Anónimo',
-      authorPhotoURL: user.photoURL || 'https://placehold.co/40x40.png',
-      createdAt: serverTimestamp(),
-      parentId: parentCommentId,
-    });
+    setIsSubmittingReply(true);
+    try {
+      await addDoc(collection(db, 'comments'), {
+        projectId: project.id,
+        text: replyText,
+        author: user.displayName || 'Anónimo',
+        authorPhotoURL: user.photoURL || 'https://placehold.co/40x40.png',
+        createdAt: serverTimestamp(),
+        parentId: parentCommentId,
+      });
 
-    setReplyText('');
-    setReplyingTo(null);
+      setReplyText('');
+      setReplyingTo(null);
+      toast({
+        title: "Respuesta publicada",
+        description: "Tu respuesta se ha publicado correctamente.",
+      });
+    } catch (error) {
+      console.error("Error posting reply:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo publicar la respuesta. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingReply(false);
+    }
   };
 
   const handleLike = async () => {
     if (!user || !project.authorId) return;
 
-    const projectRef = doc(db, "projects", project.id);
-    await updateDoc(projectRef, {
-      likes: increment(1),
-      likedBy: arrayUnion(user.uid),
-    });
+    try {
+      const projectRef = doc(db, "projects", project.id);
+      await updateDoc(projectRef, {
+        likes: increment(1),
+        likedBy: arrayUnion(user.uid),
+      });
 
-    const authorProjectsQuery = query(collection(db, "projects"), where("authors", "array-contains", project.author));
-    const authorProjectsSnapshot = await getDocs(authorProjectsQuery);
+      const authorProjectsQuery = query(collection(db, "projects"), where("authors", "array-contains", project.author));
+      const authorProjectsSnapshot = await getDocs(authorProjectsQuery);
 
-    let totalLikes = 0;
-    authorProjectsSnapshot.forEach(doc => {
-      totalLikes += doc.data().likes || 0;
-    });
+      let totalLikes = 0;
+      authorProjectsSnapshot.forEach(doc => {
+        totalLikes += doc.data().likes || 0;
+      });
 
-    if (totalLikes >= 10) {
-      await setDoc(doc(db, "users", project.authorId, "badges", "10-likes"), { unlockedAt: new Date() });
+      if (totalLikes >= 10) {
+        await setDoc(doc(db, "users", project.authorId, "badges", "10-likes"), { unlockedAt: new Date() });
+      }
+
+      toast({
+        title: "¡Me gusta!",
+        description: "Has dado like a este proyecto.",
+      });
+    } catch (error) {
+      console.error("Error liking project:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo dar like. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -178,6 +247,10 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
         author: project.author || 'Desconocido'
       });
       setAiSummary(summary);
+      toast({
+        title: "Resumen generado",
+        description: "El resumen con IA se ha generado correctamente.",
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -225,6 +298,15 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
     }
   };
 
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast({
+      title: "¡Enlace copiado!",
+      description: "El enlace del proyecto se ha copiado al portapapeles.",
+      duration: 3000,
+    });
+  };
+
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -238,104 +320,148 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
     }
   };
 
+  const formatRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'hace un momento';
+    if (diffInSeconds < 3600) return `hace ${Math.floor(diffInSeconds / 60)} min`;
+    if (diffInSeconds < 86400) return `hace ${Math.floor(diffInSeconds / 3600)} h`;
+    if (diffInSeconds < 604800) return `hace ${Math.floor(diffInSeconds / 86400)} días`;
+
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  };
+
   return (
-    <div className="container py-8 md:py-12">
-      {/* Back Button */}
+    <div className="container py-6 md:py-10 px-4">
+      {/* Back Button with better visibility */}
       <AnimatedWrapper>
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="mb-6"
+          className="mb-6 hover:bg-accent group"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+          <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+          Volver a proyectos
         </Button>
       </AnimatedWrapper>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           <AnimatedWrapper>
-            <Card className="overflow-hidden">
-              {/* Hero Image */}
-              <div className="relative">
+            <Card className="overflow-hidden shadow-lg">
+              {/* Hero Image with better interaction */}
+              <div className="relative group">
                 <Image
                   src={project.imageUrls[0] || 'https://placehold.co/1200x675.png'}
                   alt={project.title}
                   width={1200}
                   height={675}
-                  className="w-full aspect-video object-cover"
+                  className="w-full aspect-video object-cover cursor-pointer transition-transform group-hover:scale-[1.02]"
+                  onClick={() => setSelectedImage(project.imageUrls[0])}
+                  priority
                 />
-                {/* Overlay badges */}
-                <div className="absolute top-4 left-4 flex gap-2">
-                  <Badge className="bg-card/90 backdrop-blur-sm text-foreground shadow-md">
+                {/* Overlay gradient for better badge readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20 pointer-events-none" />
+
+                {/* Badges with better contrast */}
+                <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                  <Badge className="bg-background/95 backdrop-blur-md text-foreground shadow-lg border border-border/50 font-medium">
                     {project.category}
                   </Badge>
                   {project.isEco && (
-                    <Badge className="bg-green-600/90 backdrop-blur-sm text-white shadow-md">
-                      <Leaf className="mr-1 h-3 w-3" />
+                    <Badge className="bg-green-600/95 backdrop-blur-md text-white shadow-lg border border-green-500/30 font-medium">
+                      <Leaf className="mr-1.5 h-3.5 w-3.5" />
                       Ecológico
                     </Badge>
                   )}
                 </div>
+
+                {/* View counter badge */}
+                <div className="absolute bottom-4 right-4">
+                  <Badge className="bg-background/95 backdrop-blur-md text-foreground shadow-lg border border-border/50">
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    {project.views || 0} vistas
+                  </Badge>
+                </div>
               </div>
 
-              <CardHeader className="pb-4">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div className="space-y-2">
+              <CardHeader className="space-y-4 pb-4">
+                <div className="flex flex-col gap-4">
+                  {/* Title and metadata */}
+                  <div className="space-y-3">
                     <CardTitle className="text-3xl md:text-4xl font-headline leading-tight">
                       {project.title}
                     </CardTitle>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
+
+                    {/* Stats bar with icons */}
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Calendar className="h-4 w-4 text-primary" />
                         {formatDate(project.date || project.createdAt)}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <ThumbsUp className="h-4 w-4" />
-                        {likes} likes
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Heart className={`h-4 w-4 ${hasLiked ? 'text-red-500 fill-red-500' : 'text-primary'}`} />
+                        {likes} {likes === 1 ? 'like' : 'likes'}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <MessageCircle className="h-4 w-4" />
-                        {comments.length} comentarios
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <MessageCircle className="h-4 w-4 text-primary" />
+                        {comments.length} {comments.length === 1 ? 'comentario' : 'comentarios'}
                       </span>
                     </div>
 
-                    {/* AI Summary Section */}
+                    {/* AI Summary Section with better UX */}
                     {!aiSummary ? (
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="mt-2 text-primary hover:bg-primary/10 border border-primary/20 w-fit"
+                        className="mt-2 text-primary hover:bg-primary/10 border-primary/30 hover:border-primary/50 w-fit group transition-all"
                         onClick={handleGenerateSummary}
                         disabled={isGeneratingSummary}
                       >
                         {isGeneratingSummary ? (
-                          <>Generando resumen...</>
+                          <>
+                            <Bot className="mr-2 h-4 w-4 animate-pulse" />
+                            Generando resumen...
+                          </>
                         ) : (
-                          <><Sparkles className="mr-2 h-4 w-4" /> Generar Resumen con IA</>
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4 transition-transform group-hover:rotate-12" />
+                            Generar resumen con IA
+                          </>
                         )}
                       </Button>
                     ) : (
-                      <div className="mt-2 p-3 bg-gradient-to-r from-primary/5 to-transparent border border-primary/20 rounded-lg animate-in fade-in slide-in-from-top-2">
-                        <div className="flex items-center gap-2 mb-1 text-primary font-semibold text-sm">
-                          <Bot className="h-4 w-4" /> Resumen Inteligente
+                      <div className="mt-2 p-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 rounded-xl animate-in fade-in slide-in-from-top-3 duration-500 shadow-sm">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                            <Bot className="h-4 w-4 text-primary" />
+                          </div>
+                          <p className="text-primary font-semibold text-sm">Resumen Inteligente</p>
                         </div>
-                        <p className="text-sm italic text-foreground/90 leading-relaxed">{aiSummary}</p>
+                        <p className="text-sm text-foreground/90 leading-relaxed pl-10">{aiSummary}</p>
                       </div>
                     )}
                   </div>
 
-                  {/* Author Actions */}
+                  {/* Author Actions - Better positioned */}
                   {isAuthor && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={handleEdit}>
+                    <div className="flex gap-2 pt-2 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleEdit}
+                        className="hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+                      >
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </Button>
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         size="sm"
                         onClick={() => setIsDeleteDialogOpen(true)}
+                        className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Eliminar
@@ -346,24 +472,32 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
               </CardHeader>
 
               <CardContent className="space-y-6">
-                {/* Description */}
-                <div>
-                  <h3 className="font-semibold text-lg mb-3">Descripción del Proyecto</h3>
-                  <p className="text-foreground/80 leading-relaxed whitespace-pre-line">
-                    {project.description}
-                  </p>
+                {/* Description with better typography */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Descripción del Proyecto
+                  </h3>
+                  <div className="prose prose-sm max-w-none">
+                    <p className="text-foreground/80 leading-relaxed whitespace-pre-line">
+                      {project.description}
+                    </p>
+                  </div>
                 </div>
 
-                <Separator />
+                <Separator className="my-6" />
 
-                {/* Technologies */}
-                <div>
-                  <h3 className="font-semibold text-lg mb-3">Tecnologías Utilizadas</h3>
+                {/* Technologies with better visual hierarchy */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Tecnologías Utilizadas
+                  </h3>
                   <div className="flex flex-wrap gap-2">
                     {project.technologies.map((tech) => (
                       <Badge
                         key={tech}
-                        className="bg-secondary text-white border-secondary"
+                        className="transition-colors px-3 py-1.5 font-medium"
                       >
                         {tech}
                       </Badge>
@@ -371,40 +505,66 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                   </div>
                 </div>
 
-                {/* Gallery */}
+                {/* Gallery with lightbox */}
                 {project.imageUrls.length > 1 && (
                   <>
-                    <Separator />
-                    <div>
-                      <h3 className="font-semibold text-lg mb-3">Galería de Imágenes</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <Separator className="my-6" />
+                    <div className="space-y-3">
+                      <h3 className="font-semibold text-lg flex items-center gap-2">
+                        <Eye className="h-5 w-5 text-primary" />
+                        Galería de Imágenes
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {project.imageUrls.slice(1).map((url, index) => (
-                          <Image
+                          <div
                             key={index}
-                            src={url}
-                            alt={`${project.title} - Imagen ${index + 2}`}
-                            width={400}
-                            height={300}
-                            className="rounded-lg object-cover w-full aspect-video hover:scale-105 transition-transform cursor-pointer"
-                          />
+                            className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-transparent hover:border-primary/30 transition-all"
+                            onClick={() => setSelectedImage(url)}
+                          >
+                            <Image
+                              src={url}
+                              alt={`${project.title} - Imagen ${index + 2}`}
+                              width={400}
+                              height={300}
+                              className="rounded-lg object-cover w-full aspect-video group-hover:scale-110 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Eye className="h-8 w-8 text-white" />
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
                   </>
                 )}
 
-                {/* PDF Report */}
+                {/* PDF Report with better presentation */}
                 {project.developmentPdfUrl && (
                   <>
-                    <Separator />
-                    <div>
-                      <h3 className="font-semibold text-lg mb-3">Informe de Desarrollo</h3>
-                      <div className="w-full h-[600px] rounded-lg overflow-hidden border">
+                    <Separator className="my-6" />
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-primary" />
+                          Informe de Desarrollo
+                        </h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                        >
+                          <a href={project.developmentPdfUrl} target="_blank" rel="noopener noreferrer">
+                            Abrir en nueva pestaña
+                          </a>
+                        </Button>
+                      </div>
+                      <div className="w-full h-[600px] rounded-lg overflow-hidden border-2 shadow-inner bg-muted/30">
                         <iframe
                           src={project.developmentPdfUrl}
                           width="100%"
                           height="100%"
                           className="bg-white"
+                          title="Informe de desarrollo"
                         />
                       </div>
                     </div>
@@ -414,97 +574,135 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
             </Card>
           </AnimatedWrapper>
 
-          {/* Comments Section */}
+          {/* Comments Section with improved UX */}
           <AnimatedWrapper delay={200}>
-            <Card>
+            <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5" />
-                  Comentarios ({comments.length})
+                <CardTitle className="flex items-center gap-2 text-2xl">
+                  <MessageCircle className="h-6 w-6 text-primary" />
+                  Comentarios
+                  <span className="text-lg text-muted-foreground font-normal">
+                    ({comments.length})
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Comment Form */}
+                {/* Comment Form with better visual feedback */}
                 {user ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 p-4 rounded-lg border-2 border-dashed border-muted-foreground/20 bg-muted/30">
                     <div className="flex gap-4">
-                      <Avatar className="h-10 w-10">
+                      <Avatar className="h-10 w-10 border-2 border-primary/20">
                         <AvatarImage src={user.photoURL || 'https://placehold.co/40x40.png'} />
-                        <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {user.displayName?.charAt(0) || 'U'}
+                        </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
+                      <div className="flex-1 space-y-3">
                         <Textarea
-                          placeholder="Añade tu comentario o sugerencia..."
+                          placeholder="Comparte tu opinión, sugerencias o preguntas sobre este proyecto..."
                           value={newComment}
                           onChange={(e) => setNewComment(e.target.value)}
                           rows={3}
+                          disabled={isSubmittingComment}
+                          className="resize-none focus-visible:ring-primary"
                         />
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs text-muted-foreground">
+                            {newComment.length > 0 && `${newComment.length} caracteres`}
+                          </p>
+                          <Button
+                            onClick={handleCommentSubmit}
+                            disabled={!newComment.trim() || isSubmittingComment}
+                            size="sm"
+                            className="gap-2"
+                          >
+                            {isSubmittingComment ? (
+                              <>Publicando...</>
+                            ) : (
+                              <>
+                                <Send className="h-4 w-4" />
+                                Publicar comentario
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex justify-end">
-                      <Button onClick={handleCommentSubmit} disabled={!newComment.trim()}>
-                        Publicar Comentario
-                      </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-muted/50 rounded-lg p-4 text-center">
-                    <p className='text-muted-foreground'>
-                      <Button variant="link" onClick={() => router.push('/login')}>
-                        Inicia sesión
-                      </Button>
-                      para dejar un comentario.
+                  <div className="bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg p-6 text-center border-2 border-dashed border-muted-foreground/20">
+                    <MessageCircle className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                    <p className="text-muted-foreground mb-3">
+                      Inicia sesión para participar en la conversación
                     </p>
+                    <Button
+                      variant="default"
+                      onClick={() => router.push('/login')}
+                      className="gap-2"
+                    >
+                      <User className="h-4 w-4" />
+                      Iniciar sesión
+                    </Button>
                   </div>
                 )}
 
                 <Separator />
 
-                {/* Comments List */}
+                {/* Comments List with better styling */}
                 <div className="space-y-4">
                   {comments.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-6">
-                      Aún no hay comentarios. ¡Sé el primero en comentar!
-                    </p>
+                    <div className="text-center py-12">
+                      <MessageCircle className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
+                      <p className="text-muted-foreground text-lg font-medium mb-2">
+                        Aún no hay comentarios
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        ¡Sé el primero en compartir tu opinión!
+                      </p>
+                    </div>
                   ) : (
                     <>
-                      {/* Parent comments (no parentId) */}
+                      {/* Parent comments */}
                       {comments.filter(c => !c.parentId).map(comment => (
-                        <div key={comment.id} className="space-y-3">
-                          {/* Parent comment */}
-                          <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
-                            <Avatar className="h-10 w-10">
+                        <div key={comment.id} className="space-y-3 animate-in fade-in slide-in-from-left-2">
+                          {/* Parent comment with better visual hierarchy */}
+                          <div className="flex gap-4 p-4 bg-muted/40 rounded-lg border border-border/50 hover:border-primary/30 transition-colors">
+                            <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
                               <AvatarImage src={comment.authorPhotoURL || 'https://placehold.co/40x40.png'} alt={comment.author} />
-                              <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                                {comment.author.charAt(0)}
+                              </AvatarFallback>
                             </Avatar>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="font-semibold">{comment.author}</p>
+                            <div className="flex-1 space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-semibold text-foreground">{comment.author}</p>
                                 <span className="text-xs text-muted-foreground">
-                                  {comment.createdAt?.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                  {comment.createdAt && formatRelativeTime(comment.createdAt)}
                                 </span>
                               </div>
-                              <p className="text-foreground/80">{comment.text}</p>
+                              <p className="text-foreground/90 leading-relaxed">{comment.text}</p>
                               {user && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="mt-2 text-xs h-7 px-2"
+                                  className="h-8 px-3 text-xs hover:bg-primary/10 hover:text-primary"
                                   onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
                                 >
-                                  <MessageCircle className="h-3 w-3 mr-1" />
-                                  Responder
+                                  <MessageCircle className="h-3 w-3 mr-1.5" />
+                                  {replyingTo === comment.id ? 'Cancelar' : 'Responder'}
                                 </Button>
                               )}
                             </div>
                           </div>
 
-                          {/* Reply form */}
+                          {/* Reply form with better UX */}
                           {replyingTo === comment.id && user && (
-                            <div className="ml-12 flex gap-3 items-start">
-                              <Avatar className="h-8 w-8">
+                            <div className="ml-12 flex gap-3 items-start p-4 bg-primary/5 rounded-lg border-2 border-primary/20 animate-in fade-in slide-in-from-top-2">
+                              <Avatar className="h-8 w-8 border-2 border-background shadow-sm">
                                 <AvatarImage src={user.photoURL || 'https://placehold.co/40x40.png'} />
-                                <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                                <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+                                  {user.displayName?.charAt(0) || 'U'}
+                                </AvatarFallback>
                               </Avatar>
                               <div className="flex-1 space-y-2">
                                 <Textarea
@@ -512,43 +710,56 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                                   value={replyText}
                                   onChange={(e) => setReplyText(e.target.value)}
                                   rows={2}
-                                  className="text-sm"
+                                  className="text-sm resize-none focus-visible:ring-primary"
+                                  disabled={isSubmittingReply}
+                                  autoFocus
                                 />
                                 <div className="flex gap-2 justify-end">
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => { setReplyingTo(null); setReplyText(''); }}
+                                    disabled={isSubmittingReply}
                                   >
                                     Cancelar
                                   </Button>
                                   <Button
                                     size="sm"
                                     onClick={() => handleReplySubmit(comment.id)}
-                                    disabled={!replyText.trim()}
+                                    disabled={!replyText.trim() || isSubmittingReply}
+                                    className="gap-2"
                                   >
-                                    Responder
+                                    {isSubmittingReply ? (
+                                      <>Enviando...</>
+                                    ) : (
+                                      <>
+                                        <Send className="h-3 w-3" />
+                                        Responder
+                                      </>
+                                    )}
                                   </Button>
                                 </div>
                               </div>
                             </div>
                           )}
 
-                          {/* Replies to this comment */}
+                          {/* Replies with better visual connection */}
                           {comments.filter(reply => reply.parentId === comment.id).map(reply => (
-                            <div key={reply.id} className="ml-12 flex gap-3 p-3 bg-muted/20 rounded-lg border-l-2 border-primary/30">
-                              <Avatar className="h-8 w-8">
+                            <div key={reply.id} className="ml-12 flex gap-3 p-3 bg-muted/30 rounded-lg border-l-4 border-primary/40 animate-in fade-in slide-in-from-left-2">
+                              <Avatar className="h-8 w-8 border-2 border-background shadow-sm">
                                 <AvatarImage src={reply.authorPhotoURL || 'https://placehold.co/40x40.png'} alt={reply.author} />
-                                <AvatarFallback>{reply.author.charAt(0)}</AvatarFallback>
+                                <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+                                  {reply.author.charAt(0)}
+                                </AvatarFallback>
                               </Avatar>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
+                              <div className="flex-1 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <p className="font-semibold text-sm">{reply.author}</p>
                                   <span className="text-xs text-muted-foreground">
-                                    {reply.createdAt?.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    {reply.createdAt && formatRelativeTime(reply.createdAt)}
                                   </span>
                                 </div>
-                                <p className="text-foreground/80 text-sm">{reply.text}</p>
+                                <p className="text-foreground/90 text-sm leading-relaxed">{reply.text}</p>
                               </div>
                             </div>
                           ))}
@@ -562,90 +773,139 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
           </AnimatedWrapper>
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar with improved card designs */}
         <div className="space-y-6">
-          {/* Author Card */}
+          {/* Author Card with better presentation */}
           <AnimatedWrapper delay={100}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Autor</CardTitle>
+            <Card className="shadow-lg border-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />
+                  {project.author && project.author.includes(',') ? 'Creadores del Proyecto' : 'Creador del Proyecto'}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16 border-2 border-primary">
+                <div className="flex items-start gap-4 p-3 bg-gradient-to-br from-primary/5 to-transparent rounded-lg">
+                  {/* Avatar único */}
+                  <Avatar className="h-16 w-16 border-4 border-primary/20 shadow-md shrink-0">
                     <AvatarImage src={project.avatar} alt={project.author} />
-                    <AvatarFallback>{project.author?.charAt(0) || 'U'}</AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
+                      {project.author?.charAt(0).toUpperCase() || 'U'}
+                    </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <p className="font-bold text-lg">{project.author}</p>
+
+                  {/* Lista de emails */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    {project.author && project.author.includes(',') ? (
+                      // Múltiples autores
+                      project.author.split(',').map((email, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                          <p className="text-sm text-foreground font-medium truncate" title={email.trim()}>
+                            {email.trim()}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      // Un solo autor
+                      <>
+                        <p className="text-base font-semibold text-foreground truncate" title={project.author}>
+                          {project.author}
+                        </p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <GraduationCap className="h-3.5 w-3.5" />
+                          Estudiante UIDE
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
           </AnimatedWrapper>
 
-          {/* Publication Date */}
+          {/* Stats Card */}
           <AnimatedWrapper delay={150}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Fecha de Publicación</CardTitle>
+            <Card className="shadow-lg border-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Información
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3 text-lg">
-                  <Calendar className="h-5 w-5 text-secondary" />
-                  <span className="font-medium text-secondary">{formatDate(project.date || project.createdAt)}</span>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                  <span className="text-sm font-medium text-muted-foreground">Publicado</span>
+                  <span className="font-semibold text-foreground">{formatDate(project.date || project.createdAt)}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                  <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    Visualizaciones
+                  </span>
+                  <span className="font-semibold text-foreground">{project.views || 0}</span>
                 </div>
               </CardContent>
             </Card>
           </AnimatedWrapper>
 
-          {/* Like Button */}
+          {/* Like Button Card with better interaction */}
           <AnimatedWrapper delay={200}>
-            <Card>
-              <CardHeader>
-                <CardTitle>¿Te gustó este proyecto?</CardTitle>
+            <Card className="shadow-lg border-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Heart className="h-5 w-5 text-primary" />
+                  ¿Te gustó?
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
                 <Button
-                  className="w-full"
+                  className={`w-full h-12 gap-2 font-semibold transition-all ${hasLiked
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'hover:scale-105'
+                    }`}
                   onClick={handleLike}
                   disabled={hasLiked || !user}
-                  variant={hasLiked ? "secondary" : "default"}
+                  variant={hasLiked ? "default" : "default"}
                 >
-                  <ThumbsUp className={`mr-2 h-4 w-4 ${hasLiked ? 'fill-current' : ''}`} />
-                  {hasLiked ? 'Ya te gusta' : `${likes} Me gusta`}
+                  <Heart className={`h-5 w-5 ${hasLiked ? 'fill-current animate-pulse' : ''}`} />
+                  {hasLiked ? '¡Ya te gusta!' : `${likes} Me gusta`}
                 </Button>
                 {!user && (
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    Inicia sesión para dar like
-                  </p>
+                  <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg border border-dashed">
+                    <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      Inicia sesión para dar like a este proyecto
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>
           </AnimatedWrapper>
 
-          {/* Resources */}
+          {/* Resources Card with better icons */}
           {(project.website || project.githubRepo) && (
             <AnimatedWrapper delay={300}>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recursos</CardTitle>
+              <Card className="shadow-lg border-2">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Link className="h-5 w-5 text-primary" />
+                    Enlaces
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3">
                   {project.website && (
-                    <a href={project.website} target="_blank" rel="noopener noreferrer">
-                      <Button variant="outline" className="w-full justify-start">
-                        <Link className="mr-2 h-4 w-4" />
-                        Ver Página Web
+                    <a href={project.website} target="_blank" rel="noopener noreferrer" className="block">
+                      <Button variant="outline" className="w-full justify-start h-11 hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-all group">
+                        <Globe className="mr-2 h-5 w-5 transition-transform group-hover:rotate-12" />
+                        Ver sitio web
                       </Button>
                     </a>
                   )}
                   {project.githubRepo && (
-                    <a href={project.githubRepo} target="_blank" rel="noopener noreferrer">
-                      <Button variant="outline" className="w-full justify-start">
-                        <svg className="mr-2 h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-                          <path fillRule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-                        </svg>
+                    <a href={project.githubRepo} target="_blank" rel="noopener noreferrer" className="block">
+                      <Button variant="outline" className="w-full justify-start h-11 hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-all group">
+                        <Github className="mr-2 h-5 w-5 transition-transform group-hover:rotate-12" />
                         Ver en GitHub
                       </Button>
                     </a>
@@ -655,25 +915,22 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
             </AnimatedWrapper>
           )}
 
-          {/* Share */}
+          {/* Share Card with better feedback */}
           <AnimatedWrapper delay={400}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Compartir</CardTitle>
+            <Card className="shadow-lg border-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-primary" />
+                  Compartir
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <Button
                   variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    toast({
-                      title: "Enlace copiado",
-                      description: "El enlace del proyecto se ha copiado al portapapeles.",
-                    });
-                  }}
+                  className="w-full h-11 hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-all group gap-2"
+                  onClick={handleShare}
                 >
-                  <Share2 className="mr-2 h-4 w-4" />
+                  <Copy className="h-4 w-4 transition-transform group-hover:scale-110" />
                   Copiar enlace
                 </Button>
               </CardContent>
@@ -682,25 +939,61 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Image Lightbox */}
+      {selectedImage && (
+        <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+          <DialogContent className="max-w-4xl p-0 overflow-hidden">
+            <div className="relative w-full h-[80vh]">
+              <Image
+                src={selectedImage}
+                alt="Vista ampliada"
+                fill
+                className="object-contain"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Confirmation Dialog with better UX */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>¿Eliminar proyecto?</DialogTitle>
-            <DialogDescription>
-              Esta acción no se puede deshacer. El proyecto "{project.title}" y todos sus comentarios serán eliminados permanentemente.
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-destructive/10">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              </div>
+              <DialogTitle className="text-xl">¿Eliminar proyecto?</DialogTitle>
+            </div>
+            <DialogDescription className="text-base leading-relaxed pt-2">
+              Esta acción <span className="font-semibold text-foreground">no se puede deshacer</span>.
+              El proyecto <span className="font-semibold text-foreground">"{project.title}"</span> y
+              todos sus comentarios serán eliminados permanentemente.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+              className="flex-1"
+            >
               Cancelar
             </Button>
             <Button
               variant="destructive"
               onClick={handleDelete}
               disabled={isDeleting}
+              className="flex-1 gap-2"
             >
-              {isDeleting ? 'Eliminando...' : 'Eliminar proyecto'}
+              {isDeleting ? (
+                <>Eliminando...</>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Eliminar proyecto
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
