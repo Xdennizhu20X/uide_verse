@@ -123,7 +123,7 @@ export function SiteHeader() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0A1A3C]/95 backdrop-blur-md transition-colors duration-300">
+      <header className="fixed top-4 left-0 right-0 z-50 mx-auto max-w-6xl rounded-full border border-slate-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-[#0A1A3C]/80 backdrop-blur-xl shadow-lg transition-colors duration-300">
         <div className="container flex h-16 items-center">
           <div className="mr-4 hidden md:flex">
             <Link href="/" className="mr-6 flex items-center space-x-2">
