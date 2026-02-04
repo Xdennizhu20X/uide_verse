@@ -75,6 +75,52 @@ export default function SubmitProjectPage() {
   const { user, loading, canUploadProjects, isStudent } = useAuth();
   const router = useRouter();
 
+  // 1. All Hooks must be called unconditionally at the top level
+  const form = useForm<ProjectFormValues>({
+    resolver: zodResolver(projectFormSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      technologies: "",
+      otherAuthors: "",
+      website: "",
+      githubRepo: "",
+      isEcological: false,
+    },
+  });
+
+  const isEcological = form.watch("isEcological");
+  const selectedCategory = form.watch("category");
+
+  // Handle image file selection
+  const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newFiles: FileWithPreview[] = Array.from(files).map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      progress: 0,
+      uploaded: false,
+    }));
+
+    setProjectFiles(prev => [...prev, ...newFiles]);
+  }, []);
+
+  // Handle PDF file selection
+  const handlePdfSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPdfFile({
+      file,
+      preview: file.name,
+      progress: 0,
+      uploaded: false,
+    });
+  }, []);
+
+  // 2. Conditional returns come AFTER all hooks
   // Access control - show loading or redirect if not authorized
   if (loading) {
     return (
@@ -135,49 +181,7 @@ export default function SubmitProjectPage() {
     );
   }
 
-  const form = useForm<ProjectFormValues>({
-    resolver: zodResolver(projectFormSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      technologies: "",
-      otherAuthors: "",
-      website: "",
-      githubRepo: "",
-      isEcological: false,
-    },
-  });
 
-  const isEcological = form.watch("isEcological");
-  const selectedCategory = form.watch("category");
-
-  // Handle image file selection
-  const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    const newFiles: FileWithPreview[] = Array.from(files).map(file => ({
-      file,
-      preview: URL.createObjectURL(file),
-      progress: 0,
-      uploaded: false,
-    }));
-
-    setProjectFiles(prev => [...prev, ...newFiles]);
-  }, []);
-
-  // Handle PDF file selection
-  const handlePdfSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setPdfFile({
-      file,
-      preview: file.name,
-      progress: 0,
-      uploaded: false,
-    });
-  }, []);
 
   // Remove image
   const removeImage = (index: number) => {
