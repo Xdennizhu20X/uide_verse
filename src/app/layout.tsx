@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { SiteHeader } from '@/components/layout/site-header';
-import { SiteFooter } from '@/components/layout/site-footer';
+import { NavbarWrapper } from '@/components/layout/navbar-wrapper';
+import { FooterWrapper } from '@/components/layout/footer-wrapper';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
@@ -35,14 +35,14 @@ export default function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem={false}
           disableTransitionOnChange
         >
           <div className="relative flex min-h-screen flex-col">
-            <SiteHeader />
+            <NavbarWrapper />
             <main className="flex-1">{children}</main>
-            <SiteFooter />
+            <FooterWrapper />
           </div>
           <Toaster />
         </ThemeProvider>

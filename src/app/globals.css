@@ -152,6 +152,25 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Smooth scroll snap behavior */
+  .snap-y {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+  }
+
+  .snap-start {
+    scroll-snap-align: start;
+  }
+
+  .snap-always {
+    scroll-snap-stop: always;
+  }
+
+  /* Custom smooth scroll for landing page */
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 .badge-locked .p-4 {
