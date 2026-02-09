@@ -268,7 +268,7 @@ export default function CollaborationPage() {
     };
 
     return (
-        <div className="container py-10 md:py-14 px-4">
+        <div className="container pt-24 pb-10 md:pt-28 md:pb-14 px-4">
             {/* Header */}
             <AnimatedWrapper>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">

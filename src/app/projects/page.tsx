@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { ProjectCard } from "@/components/project-card";
+import { BentoProjectCard } from "@/components/bento-project-card";
 import { ProjectCardSkeleton } from "@/components/project-card-skeleton";
 import { AnimatedWrapper } from "@/components/animated-wrapper";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Filter, FolderOpen, Sparkles, Loader2 } from "lucide-react";
+import { FolderOpen, Sparkles, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { getDocs, collection } from "firebase/firestore";
 import type { Project } from "@/lib/types";
 import { analyzeSearchIntent } from "@/app/actions/search";
+import { motion } from "framer-motion";
+
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -189,155 +190,189 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="container py-12 md:py-16">
-      <AnimatedWrapper>
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary flex items-center justify-center gap-3">
-            Galería de Proyectos <Sparkles className="h-8 w-8 text-yellow-500" />
-          </h1>
-          <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Describe tu idea (ej. "apps de salud con react") y nuestra IA encontrará los proyectos perfectos para ti.
-          </p>
-        </div>
-      </AnimatedWrapper>
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0A1A3C] relative">
+      {/* Background Effects */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[10%] right-[5%] w-[600px] h-[600px] bg-sky-200/30 dark:bg-sky-500/10 rounded-full blur-[150px]" />
+        <div className="absolute bottom-[20%] left-[10%] w-[500px] h-[500px] bg-indigo-200/30 dark:bg-indigo-500/10 rounded-full blur-[150px]" />
+        <div className="absolute top-[60%] right-[15%] w-[400px] h-[400px] bg-amber-200/20 dark:bg-amber-500/10 rounded-full blur-[120px]" />
+      </div>
 
-      <AnimatedWrapper delay={200}>
-        <div className="flex flex-col md:flex-row gap-4 mb-8 p-4 border rounded-lg bg-card items-start md:items-center">
-          <div className="flex-grow w-full relative">
-            <Input
-              placeholder="Describe lo que buscas... (Enter para IA)"
-              className="w-full pr-12 border-primary/20 focus-visible:ring-primary/40"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (e.target.value === '') setAiKeywords([]); // Clear AI context on clear
-              }}
-              onKeyDown={handleKeyDown}
-            />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              {isAnalyzing ? (
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              ) : (
+      <div className="container py-24 md:py-28 relative z-10">
+        {/* UNIFIED BENTO GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+
+          {/* === HEADER CELL - Spans 2 cols === */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="md:col-span-2 rounded-3xl bg-gradient-to-br from-[#0A1A3C] to-[#152a58] dark:from-[#152a58] dark:to-[#0A1A3C] p-8 md:p-10 flex flex-col justify-center shadow-2xl border border-[#1e3a6d]/50 min-h-[200px]"
+          >
+            <div className="inline-flex items-center gap-2 bg-[#F0A800]/20 px-4 py-2 rounded-full mb-4 w-fit">
+              <Sparkles className="h-5 w-5 text-[#F0A800]" />
+              <span className="text-sm font-semibold text-white">Powered by AI</span>
+            </div>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold font-headline text-white leading-tight mb-3">
+              Galería de <span className="text-[#F0A800]">Proyectos</span>
+            </h1>
+            <p className="text-base md:text-lg text-slate-300 leading-relaxed">
+              Describe tu idea y nuestra IA encontrará los proyectos perfectos.
+            </p>
+          </motion.div>
+
+          {/* === SEARCH + STATS CELL === */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="rounded-3xl bg-white dark:bg-[#152a58] p-6 shadow-xl border-2 border-slate-100 dark:border-[#1e3a6d] flex flex-col justify-between min-h-[200px]"
+          >
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-[#F0A800]/20 flex items-center justify-center">
+                  <Sparkles className="h-5 w-5 text-[#F0A800]" />
+                </div>
+                <span className="font-bold text-[#0A1A3C] dark:text-white">Búsqueda Inteligente</span>
+              </div>
+              <div className="relative">
+                <Input
+                  placeholder="Describe lo que buscas..."
+                  className="w-full h-12 pr-14 text-base border-2 border-slate-200 dark:border-[#1e3a6d] bg-slate-50 dark:bg-[#0A1A3C]/50 rounded-xl focus-visible:ring-[#F0A800]"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (e.target.value === '') setAiKeywords([]);
+                  }}
+                  onKeyDown={handleKeyDown}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {isAnalyzing ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-[#F0A800]" />
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-lg bg-[#F0A800] hover:bg-[#d99700] text-[#0A1A3C]"
+                      onClick={handleSmartSearch}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200 dark:border-[#1e3a6d]">
+              <div>
+                <p className="text-2xl font-bold text-[#0A1A3C] dark:text-white">{filteredProjects.length}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">proyectos</p>
+              </div>
+              {(searchQuery || aiKeywords.length > 0) && (
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 hover:bg-transparent text-primary/60 hover:text-primary"
-                  onClick={handleSmartSearch}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setAiKeywords([]);
+                  }}
+                  className="text-[#910048] hover:text-[#910048] hover:bg-[#910048]/10 rounded-xl"
                 >
-                  <Sparkles className="h-5 w-5" />
+                  Limpiar
                 </Button>
               )}
             </div>
-          </div>
+          </motion.div>
 
-          <Select
-            onValueChange={(value) => {
-              setSelectedCategory(value === 'all' ? '' : value);
-              setSelectedTechnology('');
-            }}
-            value={selectedCategory}
-          >
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          <Select onValueChange={(value) => setSelectedTechnology(value === 'all' ? '' : value)} value={selectedTechnology}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Tecnología" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {availableTechnologies.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          <Button onClick={() => {
-            setSearchQuery('');
-            setAiKeywords([]);
-            setSelectedCategory('');
-            setSelectedTechnology('');
-          }}>
-            <Filter className="mr-2 h-4 w-4" />
-            Limpiar
-          </Button>
-        </div>
-      </AnimatedWrapper>
-
-      {/* Loading Skeletons */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[...Array(6)].map((_, i) => (
-            <AnimatedWrapper key={i} delay={100 * (i % 3)}>
-              <ProjectCardSkeleton />
-            </AnimatedWrapper>
-          ))}
-        </div>
-      ) : filteredProjects.length === 0 ? (
-        /* Empty State */
-        <AnimatedWrapper delay={300}>
-          <div className="text-center py-16">
-            <FolderOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No se encontraron proyectos</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery || selectedCategory || selectedTechnology
-                ? 'Intenta con otros filtros de búsqueda.'
-                : 'Aún no hay proyectos publicados.'}
-            </p>
-            {(searchQuery || selectedCategory || selectedTechnology) && (
-              <Button onClick={() => {
-                setSearchQuery('');
-                setSelectedCategory('');
-                setSelectedTechnology('');
-              }}>
-                Limpiar filtros
-              </Button>
-            )}
-          </div>
-        </AnimatedWrapper>
-      ) : (
-        <>
-          {/* Projects Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {currentProjects.map((project, index) => (
-              <AnimatedWrapper key={project.id} delay={100 * (index % 3)}>
-                <ProjectCard project={project} />
-              </AnimatedWrapper>
-            ))}
-          </div>
-
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <AnimatedWrapper delay={200}>
-              <div className="flex justify-center items-center gap-4 mt-12">
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Anterior
+          {/* === PROJECT CARDS === */}
+          {loading ? (
+            // Loading skeletons
+            [...Array(6)].map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 + i * 0.1 }}
+                className={`rounded-3xl bg-white dark:bg-[#152a58] border-2 border-slate-100 dark:border-[#1e3a6d] overflow-hidden ${i === 0 ? 'md:col-span-2 md:row-span-2' : ''}`}
+              >
+                <ProjectCardSkeleton />
+              </motion.div>
+            ))
+          ) : filteredProjects.length === 0 ? (
+            // Empty state
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+              className="md:col-span-4 rounded-3xl bg-white dark:bg-[#152a58] p-12 shadow-xl border-2 border-slate-100 dark:border-[#1e3a6d] text-center"
+            >
+              <FolderOpen className="h-20 w-20 text-slate-300 dark:text-slate-600 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-[#0A1A3C] dark:text-white mb-2">No se encontraron proyectos</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-6">
+                {searchQuery || selectedCategory || selectedTechnology
+                  ? 'Intenta con otros filtros de búsqueda.'
+                  : 'Aún no hay proyectos publicados.'}
+              </p>
+              {(searchQuery || selectedCategory || selectedTechnology) && (
+                <Button onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('');
+                  setSelectedTechnology('');
+                }} className="bg-[#F0A800] hover:bg-[#d99700] text-[#0A1A3C] rounded-xl">
+                  Limpiar filtros
                 </Button>
+              )}
+            </motion.div>
+          ) : (
+            // Project cards
+            currentProjects.map((project, index) => {
+              const getSizeForIndex = (i: number): 'small' | 'medium' | 'large' | 'wide' | 'tall' => {
+                const pattern = i % 8;
+                if (pattern === 0) return 'large';
+                if (pattern === 3) return 'wide';
+                if (pattern === 5) return 'tall';
+                return 'medium';
+              };
 
-                <span className="text-sm font-medium text-muted-foreground">
-                  Página {currentPage} de {totalPages}
-                </span>
-
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </AnimatedWrapper>
+              return (
+                <BentoProjectCard
+                  key={project.id}
+                  project={project}
+                  size={getSizeForIndex(index)}
+                  index={index}
+                />
+              );
+            })
           )}
-        </>
-      )}
+        </div>
+
+        {/* Pagination */}
+        {!loading && filteredProjects.length > 0 && totalPages > 1 && (
+          <AnimatedWrapper delay={200}>
+            <div className="flex justify-center items-center gap-4 mt-12">
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </Button>
+
+              <span className="text-sm font-medium text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </span>
+
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </AnimatedWrapper>
+        )}
+      </div>
     </div>
   );
 }

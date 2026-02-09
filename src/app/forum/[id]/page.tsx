@@ -255,7 +255,7 @@ export default function TopicDetailPage() {
     };
 
     return (
-        <div className="container py-12 md:py-16 max-w-4xl">
+        <div className="container pt-24 pb-12 md:pt-28 md:pb-16 max-w-4xl">
             <AnimatedWrapper>
                 <Button
                     variant="ghost"

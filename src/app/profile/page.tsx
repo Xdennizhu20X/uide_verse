@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -18,24 +18,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ProjectCard } from "@/components/project-card";
-import { ProjectCardSkeleton } from "@/components/project-card-skeleton";
-import { AnimatedWrapper } from "@/components/animated-wrapper";
-import { Award, Edit, FolderOpen, Heart, Save, Upload, X, Users, MessageSquare, Leaf, Star, GitMerge } from 'lucide-react';
+import { Award, Edit, FolderOpen, Heart, Save, Upload, X, Leaf, Star, ArrowRight, Mail, Sparkles } from 'lucide-react';
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs, limit, startAfter, setDoc, updateDoc } from "firebase/firestore";
 import { updateProfile } from 'firebase/auth';
 import type { Project } from "@/lib/types";
+import { motion } from "framer-motion";
 
 const PROJECTS_PER_PAGE = 6;
 
 const allBadges = [
-  { id: 'first-project', name: 'Primer Proyecto', icon: <Award className="h-8 w-8 text-primary" />, description: 'Publicaste tu primer proyecto' },
-  { id: 'eco-warrior', name: 'Eco-Guerrero', icon: <Leaf className="h-8 w-8 text-green-500" />, description: 'Publicaste un proyecto ecológico' },
-  { id: '10-likes', name: '10 Likes', icon: <Star className="h-8 w-8 text-yellow-500" />, description: 'Recibiste 10 likes en total' },
-  { id: '10-projects', name: '10 Proyectos', icon: <Upload className="h-8 w-8 text-blue-500" />, description: 'Publicaste 10 proyectos' },
+  { id: 'first-project', name: 'Primer Proyecto', icon: <Award className="h-8 w-8 text-primary" />, description: 'Publicaste tu primer proyecto', color: 'from-blue-500 to-indigo-600' },
+  { id: 'eco-warrior', name: 'Eco-Guerrero', icon: <Leaf className="h-8 w-8 text-green-500" />, description: 'Publicaste un proyecto ecológico', color: 'from-green-400 to-emerald-600' },
+  { id: '10-likes', name: '10 Likes', icon: <Star className="h-8 w-8 text-yellow-500" />, description: 'Recibiste 10 likes en total', color: 'from-yellow-400 to-orange-500' },
+  { id: '10-projects', name: '10 Proyectos', icon: <Upload className="h-8 w-8 text-purple-500" />, description: 'Publicaste 10 proyectos', color: 'from-purple-400 to-pink-600' },
 ];
 
 export default function ProfilePage() {
@@ -59,10 +57,6 @@ export default function ProfilePage() {
     biography: '',
     technologies: '',
   });
-
-  const [userCollaborations, setUserCollaborations] = useState<any[]>([]);
-  const [userTopics, setUserTopics] = useState<any[]>([]);
-
 
   // Calculate stats
   const totalProjects = userProjects.length;
@@ -171,29 +165,7 @@ export default function ProfilePage() {
           return { ...def, unlocked: !!earned, unlockedAt: earned?.unlockedAt };
         });
         setUserBadges(mergedBadges);
-        return earnedBadges.map(b => b.id); // Return IDs of unlocked badges for checkAndAwardBadges
-      };
-
-      const fetchUserCollaborations = async () => {
-        const collabsQuery = query(collection(db, 'collaborations'), where('authorId', '==', user.uid));
-        const collabsSnapshot = await getDocs(collabsQuery);
-        const fetchedCollabs = collabsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          type: 'collaboration',
-          ...doc.data()
-        }));
-        setUserCollaborations(fetchedCollabs);
-      };
-
-      const fetchUserTopics = async () => {
-        const topicsQuery = query(collection(db, 'forum_topics'), where('authorId', '==', user.uid));
-        const topicsSnapshot = await getDocs(topicsQuery);
-        const fetchedTopics = topicsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          type: 'topic',
-          ...doc.data()
-        }));
-        setUserTopics(fetchedTopics);
+        return earnedBadges.map(b => b.id);
       };
 
       const checkAndAwardBadges = async (unlockedBadges: string[]) => {
@@ -230,7 +202,6 @@ export default function ProfilePage() {
     try {
       let photoURL = user.photoURL;
 
-      // Upload image if selected
       if (selectedFile) {
         const reader = new FileReader();
         reader.readAsDataURL(selectedFile);
@@ -268,13 +239,11 @@ export default function ProfilePage() {
         lastName: editForm.lastName,
         biography: editForm.biography,
         technologies: technologies,
-        ...(photoURL !== user.photoURL && { photoURL }), // Only add if changed (though standard Firestore user doc might not use photoURL field directly, usually handled by Auth, but good to sync)
+        ...(photoURL !== user.photoURL && { photoURL }),
       };
 
-      // Update Firestore User Doc
       await updateDoc(doc(db, 'users', user.uid), updatedData);
 
-      // Update Firebase Auth Profile
       if (photoURL !== user.photoURL || editForm.firstName !== user.displayName?.split(' ')[0]) {
         await updateProfile(user, {
           displayName: `${editForm.firstName} ${editForm.lastName}`,
@@ -296,7 +265,7 @@ export default function ProfilePage() {
       });
 
       setIsEditDialogOpen(false);
-      setSelectedFile(null); // Reset selection
+      setSelectedFile(null);
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({
@@ -311,235 +280,237 @@ export default function ProfilePage() {
 
   if (!user || !userProfile) {
     return (
-      <div className="container py-12 md:py-16">
-        <div className="animate-pulse space-y-8">
-          <div className="h-48 bg-muted rounded-lg"></div>
-          <div className="h-64 bg-muted rounded-lg"></div>
+      <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0A1A3C] pt-24 pb-12">
+        <div className="container">
+          <div className="animate-pulse grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1 md:row-span-2 h-[400px] bg-slate-200 dark:bg-slate-800 rounded-3xl"></div>
+            <div className="md:col-span-2 h-[200px] bg-slate-200 dark:bg-slate-800 rounded-3xl"></div>
+            <div className="h-[180px] bg-slate-200 dark:bg-slate-800 rounded-3xl"></div>
+            <div className="h-[180px] bg-slate-200 dark:bg-slate-800 rounded-3xl"></div>
+          </div>
         </div>
       </div>
     );
   }
 
-  const unlockedBadgesCount = userBadges.filter(b => b.unlocked).length;
+  const unlockedBadges = userBadges.filter(b => b.unlocked);
 
   return (
-    <div className="container py-12 md:py-16">
-      {/* Profile Header Card */}
-      <AnimatedWrapper>
-        <Card className="mb-8">
-          <CardContent className="pt-6 pb-6">
-            <div className="flex flex-col md:flex-row items-center gap-6">
-              <Avatar className="h-28 w-28 border-4 border-primary shadow-lg">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0A1A3C] relative">
+      {/* Background Effects */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[10%] right-[5%] w-[600px] h-[600px] bg-sky-200/30 dark:bg-sky-500/10 rounded-full blur-[150px]" />
+        <div className="absolute bottom-[20%] left-[10%] w-[500px] h-[500px] bg-indigo-200/30 dark:bg-indigo-500/10 rounded-full blur-[150px]" />
+        <div className="absolute top-[60%] right-[15%] w-[400px] h-[400px] bg-amber-200/20 dark:bg-amber-500/10 rounded-full blur-[120px]" />
+      </div>
+
+      <div className="container pt-32 pb-12 md:pt-36 md:pb-16 relative z-10">
+        {/* BENTO GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+
+          {/* === PROFILE CARD (2x2) === */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="md:col-span-1 md:row-span-2 rounded-3xl bg-white dark:bg-[#0A1A3C] p-6 md:p-8 flex flex-col items-center justify-center text-center shadow-xl border-2 border-slate-100 dark:border-[#1e3a6d]"
+          >
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-[#F0A901]/10 rounded-full scale-110" />
+              <Avatar className="h-32 w-32 border-4 border-white dark:border-[#0A1A3C] shadow-lg relative z-10">
                 <AvatarImage src={user.photoURL || 'https://placehold.co/128x128.png'} />
-                <AvatarFallback className="text-3xl">{userProfile.firstName?.charAt(0) || 'U'}</AvatarFallback>
+                <AvatarFallback className="text-4xl bg-[#F0A901] text-[#0A1A3C]">{userProfile.firstName?.charAt(0) || 'U'}</AvatarFallback>
               </Avatar>
-
-              <div className="flex-grow text-center md:text-left md:pb-2">
-                <h1 className="text-3xl font-bold font-headline">
-                  {userProfile.firstName} {userProfile.lastName}
-                </h1>
-                <p className="text-muted-foreground">{user.email}</p>
-                {userProfile.biography && (
-                  <p className="mt-2 text-foreground/80 max-w-2xl">{userProfile.biography}</p>
-                )}
-                <div className="mt-3 flex flex-wrap gap-2 justify-center md:justify-start">
-                  {userProfile.technologies?.map((tech: string) => (
-                    <Badge key={tech} className="bg-secondary text-white">{tech}</Badge>
-                  ))}
-                </div>
-              </div>
-
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(true)} className="md:self-start mt-4 md:mt-0">
-                <Edit className="mr-2 h-4 w-4" /> Editar Perfil
-              </Button>
             </div>
-          </CardContent>
-        </Card>
-      </AnimatedWrapper>
 
-      {/* Stats Cards */}
-      <AnimatedWrapper delay={100}>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Card className="text-center p-4">
-            <div className="flex flex-col items-center">
-              <FolderOpen className="h-8 w-8 text-primary mb-2" />
-              <p className="text-3xl font-bold">{totalProjects}</p>
-              <p className="text-sm text-muted-foreground">Proyectos</p>
-            </div>
-          </Card>
-          <Card className="text-center p-4">
-            <div className="flex flex-col items-center">
-              <Heart className="h-8 w-8 text-red-500 mb-2" />
-              <p className="text-3xl font-bold">{totalLikes}</p>
-              <p className="text-sm text-muted-foreground">Likes Totales</p>
-            </div>
-          </Card>
-          <Card className="text-center p-4">
-            <div className="flex flex-col items-center">
-              <Leaf className="h-8 w-8 text-green-500 mb-2" />
-              <p className="text-3xl font-bold">{totalEcoProjects}</p>
-              <p className="text-sm text-muted-foreground">Proyectos Eco</p>
-            </div>
-          </Card>
-          <Card className="text-center p-4">
-            <div className="flex flex-col items-center">
-              <Award className="h-8 w-8 text-yellow-500 mb-2" />
-              <p className="text-3xl font-bold">{unlockedBadgesCount}</p>
-              <p className="text-sm text-muted-foreground">Insignias</p>
-            </div>
-          </Card>
-        </div>
-      </AnimatedWrapper>
+            <Badge className="bg-[#910048]/10 text-[#910048] dark:bg-[#910048]/20 dark:text-[#ff8daf] hover:bg-[#910048]/20 border-0 mb-3 px-3 py-1">
+              Estudiante
+            </Badge>
 
-      {/* Tabs */}
-      <AnimatedWrapper delay={200}>
-        <Tabs defaultValue="projects" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="projects" className="gap-2">
-              <FolderOpen className="h-4 w-4" /> Mis Proyectos
-            </TabsTrigger>
-            <TabsTrigger value="badges" className="gap-2">
-              <Award className="h-4 w-4" /> Insignias
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="gap-2">
-              <GitMerge className="h-4 w-4" /> Actividad
-            </TabsTrigger>
-          </TabsList>
+            <h1 className="text-2xl md:text-3xl font-bold font-headline text-[#0A1A3C] dark:text-white leading-tight mb-2">
+              {userProfile.firstName} {userProfile.lastName}
+            </h1>
 
-          <TabsContent value="projects">
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(3)].map((_, i) => (
-                  <ProjectCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : userProjects.length === 0 ? (
-              <Card className="text-center py-12">
-                <CardContent>
-                  <FolderOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No tienes proyectos aún</h3>
-                  <p className="text-muted-foreground mb-4">¡Comienza a compartir tu trabajo con la comunidad!</p>
-                  <Button onClick={() => router.push('/submit-project')}>
-                    <Upload className="mr-2 h-4 w-4" /> Publicar mi primer proyecto
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {userProjects.map((project) => (
-                    <div key={project.id} className="h-full">
-                      <ProjectCard project={project} />
-                    </div>
-                  ))}
-                </div>
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm mb-4">
+              <Mail className="h-4 w-4" />
+              <span>{user.email}</span>
+            </div>
 
-                {hasMore && (
-                  <div className="mt-8 flex justify-center">
-                    <Button
-                      onClick={loadMoreProjects}
-                      disabled={loadingMore}
-                      variant="outline"
-                    >
-                      {loadingMore ? 'Cargando...' : 'Cargar más proyectos'}
-                    </Button>
-                  </div>
-                )}
-              </>
+            {userProfile.biography && (
+              <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-6 line-clamp-4">{userProfile.biography}</p>
             )}
-          </TabsContent>
 
-          <TabsContent value="badges">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(true)}
+              className="mt-auto w-full border-2 border-slate-200 dark:border-[#1e3a6d] hover:bg-slate-50 dark:hover:bg-[#152a58] text-[#0A1A3C] dark:text-white rounded-xl"
+            >
+              <Edit className="mr-2 h-4 w-4" /> Editar Perfil
+            </Button>
+          </motion.div>
+
+          {/* === STATS: PROJECTS === */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="rounded-3xl bg-white dark:bg-[#0A1A3C] p-6 shadow-xl flex flex-col justify-between min-h-[140px] border-2 border-slate-100 dark:border-[#1e3a6d]"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-[#002D72]/10 flex items-center justify-center mb-2">
+              <FolderOpen className="h-6 w-6 text-[#002D72] dark:text-[#4dabf7]" />
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-[#0A1A3C] dark:text-white">{totalProjects}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Proyectos</p>
+            </div>
+          </motion.div>
+
+          {/* === STATS: LIKES === */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="rounded-3xl bg-white dark:bg-[#0A1A3C] p-6 shadow-xl flex flex-col justify-between min-h-[140px] border-2 border-slate-100 dark:border-[#1e3a6d]"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-[#910048]/10 flex items-center justify-center mb-2">
+              <Heart className="h-6 w-6 text-[#910048] dark:text-[#f06595]" />
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-[#0A1A3C] dark:text-white">{totalLikes}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Me gusta</p>
+            </div>
+          </motion.div>
+
+          {/* === STATS: ECO === */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="rounded-3xl bg-white dark:bg-[#0A1A3C] p-6 shadow-xl flex flex-col justify-between min-h-[140px] border-2 border-slate-100 dark:border-[#1e3a6d]"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-2">
+              <Leaf className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-[#0A1A3C] dark:text-white">{totalEcoProjects}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Impacto Eco</p>
+            </div>
+          </motion.div>
+
+          {/* === BADGES GRID (Full Width Row 2) === */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="md:col-span-3 rounded-3xl bg-white dark:bg-[#0A1A3C] p-6 shadow-xl border-2 border-slate-100 dark:border-[#1e3a6d] flex flex-col justify-center"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#F0A901]/10 flex items-center justify-center">
+                  <Award className="h-5 w-5 text-[#F0A901]" />
+                </div>
+                <h3 className="text-xl font-bold text-[#0A1A3C] dark:text-white">Mis Insignias</h3>
+              </div>
+              <Badge variant="outline" className="border-[#F0A901] text-[#F0A901] bg-[#F0A901]/5">
+                {unlockedBadges.length}/{allBadges.length}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {userBadges.map((badge) => (
-                <Card
+                <div
                   key={badge.id}
-                  className={`text-center transition-all ${badge.unlocked
-                    ? 'border-primary/50 bg-primary/5'
-                    : 'opacity-50 grayscale'
+                  className={`rounded-2xl p-3 flex flex-col items-center justify-center text-center transition-all min-h-[120px] ${badge.unlocked
+                    ? 'bg-[#F0A901]/10 border-2 border-[#F0A901]/30'
+                    : 'bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-800 opacity-60'
                     }`}
                 >
-                  <CardContent className="pt-6">
-                    <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4 ${badge.unlocked ? 'bg-primary/10' : 'bg-muted'
-                      }`}>
-                      {badge.icon}
-                    </div>
-                    <h3 className="font-semibold mb-1">{badge.name}</h3>
-                    <p className="text-sm text-muted-foreground">{badge.description}</p>
-                    {badge.unlocked && (
-                      <Badge className="mt-3 bg-green-500 text-white">Desbloqueada</Badge>
-                    )}
-                  </CardContent>
-                </Card>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${badge.unlocked ? 'bg-[#F0A901] text-[#0A1A3C]' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
+                    }`}>
+                    {badge.icon}
+                  </div>
+                  <p className={`font-bold text-xs mb-0.5 ${badge.unlocked ? 'text-[#0A1A3C] dark:text-[#F0A901]' : 'text-slate-500'}`}>
+                    {badge.name}
+                  </p>
+                  {badge.unlocked && (
+                    <span className="text-[9px] uppercase tracking-wider font-bold text-[#F0A901] dark:text-white/80">
+                      Obtenida
+                    </span>
+                  )}
+                </div>
               ))}
             </div>
-          </TabsContent>
+          </motion.div>
 
-          <TabsContent value="activity">
-            <Card>
-              <CardHeader>
-                <CardTitle>Actividad Reciente</CardTitle>
-                <CardDescription>Tu actividad en la plataforma</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {(() => {
-                    const allActivity = [
-                      ...userProjects.map(p => ({ ...p, type: 'project', date: p.createdAt })),
-                      ...userBadges.filter(b => b.unlocked).map(b => ({ ...b, type: 'badge', date: b.unlockedAt?.toDate ? b.unlockedAt.toDate() : b.unlockedAt })), // Handle timestamp conversion
-                      ...userCollaborations.map(c => ({ ...c, type: 'collaboration', date: c.createdAt })),
-                      ...userTopics.map(t => ({ ...t, type: 'topic', date: t.createdAt }))
-                    ].sort((a, b) => {
-                      const dateA = new Date(a.date || 0).getTime();
-                      const dateB = new Date(b.date || 0).getTime();
-                      return dateB - dateA;
-                    });
+          {/* === ALL PROJECTS INTEGRATED === */}
+          {userProjects.map((project, index) => {
+            // Standard grid mapping - projects simply flow into the grid
+            // First project can be featured (2 cols) if desired, or just standard 1 col
+            // Let's make the first project span 2 cols to add visual interest if it's the "Featured" one
+            // layout:
+            // Proj 0 (2cols), Proj 1 (1col), Proj 2 (1col) -> Row 3 Full
 
-                    if (allActivity.length === 0) {
-                      return <p className="text-muted-foreground text-center py-8">No hay actividad reciente.</p>;
-                    }
+            const isFeatured = index === 0;
+            const gridClasses = `rounded-3xl overflow-hidden shadow-xl relative min-h-[180px] group border-2 border-slate-100 dark:border-[#1e3a6d] ${isFeatured ? 'md:col-span-2 md:row-span-1 min-h-[220px]' : 'md:col-span-1'
+              }`;
 
-                    return allActivity.slice(0, 10).map((item: any) => (
-                      <div key={`${item.type}-${item.id}`} className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg">
-                        {/* Icon Logic */}
-                        <div className={`p-2 rounded-full ${item.type === 'project' ? 'bg-green-500/10' :
-                          item.type === 'badge' ? 'bg-yellow-500/10' :
-                            item.type === 'collaboration' ? 'bg-blue-500/10' :
-                              'bg-purple-500/10'
-                          }`}>
-                          {item.type === 'project' && <Upload className="h-4 w-4 text-green-500" />}
-                          {item.type === 'badge' && <Award className="h-4 w-4 text-yellow-500" />}
-                          {item.type === 'collaboration' && <Users className="h-4 w-4 text-blue-500" />}
-                          {item.type === 'topic' && <MessageSquare className="h-4 w-4 text-purple-500" />}
-                        </div>
-
-                        {/* Content Logic */}
-                        <div>
-                          <p className="font-medium">
-                            {item.type === 'project' && 'Publicaste un nuevo proyecto'}
-                            {item.type === 'badge' && '¡Nueva insignia desbloqueada!'}
-                            {item.type === 'collaboration' && 'Abriste una colaboración'}
-                            {item.type === 'topic' && 'Publicaste en el foro'}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {item.type === 'project' && item.title}
-                            {item.type === 'badge' && `Obtuviste la insignia "${item.name}"`}
-                            {item.type === 'collaboration' && item.title}
-                            {item.type === 'topic' && item.title}
-                          </p>
-                          <p className="text-xs text-secondary mt-1">
-                            {item.date ? new Date(item.date).toLocaleDateString() : 'Recientemente'}
-                          </p>
-                        </div>
-                      </div>
-                    ));
-                  })()}
+            return (
+              <motion.div
+                key={project.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
+                className={gridClasses}
+              >
+                <Image
+                  src={project.imageUrls?.[0] || 'https://placehold.co/300x200.png'}
+                  alt={project.title}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A1A3C]/90 via-[#0A1A3C]/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-5">
+                  {isFeatured && (
+                    <Badge className="bg-[#F0A901] hover:bg-[#d99700] text-[#0A1A3C] border-0 mb-2 px-2 py-0.5 text-xs font-semibold w-fit">
+                      Destacado
+                    </Badge>
+                  )}
+                  <p className={`text-white font-bold leading-tight group-hover:text-[#F0A901] transition-colors ${isFeatured ? 'text-xl' : 'text-sm line-clamp-2'}`}>
+                    {project.title}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </AnimatedWrapper>
+                <Link href={`/projects/${project.id}`} className="absolute inset-0" />
+              </motion.div>
+            );
+          })}
+
+          {/* Load More Button integrated if needed, strictly as a small pill at bottom if huge list,
+              but user said "proyectos son parte del grid", implying just cards.
+              We'll leave infinite scroll or auto-load logic for later if pagination is needed,
+              but for now ensuring visual density. */}
+
+          {/* Empty state if no projects */}
+          {userProjects.length === 0 && !loading && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="md:col-span-4 rounded-3xl bg-white dark:bg-[#0A1A3C] p-10 shadow-xl border-2 border-slate-100 dark:border-[#1e3a6d] flex flex-col items-center justify-center text-center mt-4"
+            >
+              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                <FolderOpen className="h-8 w-8 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-bold text-[#0A1A3C] dark:text-white mb-1">Tu portafolio está vacío</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm max-w-md">
+                Publica tus proyectos para compartir tu trabajo con la comunidad y empezar a ganar insignias.
+              </p>
+              <Button onClick={() => router.push('/submit-project')} className="bg-[#F0A901] hover:bg-[#d99700] text-[#0A1A3C] rounded-xl px-8">
+                <Upload className="mr-2 h-4 w-4" /> Publicar Proyecto
+              </Button>
+            </motion.div>
+          )}
+        </div>
+      </div>
 
       {/* Edit Profile Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -556,19 +527,17 @@ export default function ProfilePage() {
                 <AvatarImage src={selectedFile ? URL.createObjectURL(selectedFile) : (user?.photoURL || '')} />
                 <AvatarFallback>{editForm.firstName?.charAt(0)}</AvatarFallback>
               </Avatar>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="picture"
-                  type="file"
-                  accept="image/*"
-                  className="w-full max-w-xs cursor-pointer"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      setSelectedFile(e.target.files[0]);
-                    }
-                  }}
-                />
-              </div>
+              <Input
+                id="picture"
+                type="file"
+                accept="image/*"
+                className="w-full max-w-xs cursor-pointer"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    setSelectedFile(e.target.files[0]);
+                  }
+                }}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

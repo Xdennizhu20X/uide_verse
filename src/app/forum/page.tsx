@@ -125,7 +125,7 @@ export default function ForumPage() {
   };
 
   return (
-    <div className="container py-12 md:py-16">
+    <div className="container pt-24 pb-12 md:pt-28 md:pb-16">
       <AnimatedWrapper>
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12">
           <div className="space-y-4">
