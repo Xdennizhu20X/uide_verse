@@ -11,7 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { MessageSquare, Plus, Clock, MessageCircle, User, Sparkles } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MessageSquare, Plus, Clock, MessageCircle, User, Sparkles, Search } from 'lucide-react';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 
 import { db } from '@/lib/firebase';
@@ -66,6 +67,7 @@ export default function ForumPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newTopic, setNewTopic] = useState({ title: '', content: '', tag: '' });
+  const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
     const q = query(collection(db, 'forum_topics'), orderBy('lastReplyAt', 'desc'));
@@ -79,6 +81,16 @@ export default function ForumPage() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Filter topics based on active tab
+  const getFilteredTopics = () => {
+    if (activeTab === "mine" && user) {
+      return topics.filter(t => t.authorId === user.uid);
+    }
+    return topics;
+  };
+
+  const filteredTopics = getFilteredTopics();
 
   const handleCreateTopic = async () => {
     if (!user) {
@@ -108,6 +120,7 @@ export default function ForumPage() {
 
       setNewTopic({ title: '', content: '', tag: '' });
       setIsDialogOpen(false);
+      setActiveTab("mine"); // Switch to "my forums" after creating
       toast({
         title: "¡Tema publicado!",
         description: "Tu tema ha sido creado exitosamente"
@@ -245,6 +258,22 @@ export default function ForumPage() {
         </div>
       </AnimatedWrapper>
 
+      {/* Tabs for All Forums / My Forums */}
+      <AnimatedWrapper delay={100}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2 h-12">
+            <TabsTrigger value="all" className="gap-2">
+              <Search className="h-4 w-4" />
+              Todos los Foros
+            </TabsTrigger>
+            <TabsTrigger value="mine" disabled={!user} className="gap-2">
+              <User className="h-4 w-4" />
+              Mis Foros Publicados
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </AnimatedWrapper>
+
       <AnimatedWrapper delay={200}>
         <Card className="overflow-hidden shadow-md border-2">
           <div className="overflow-x-auto">
@@ -273,8 +302,8 @@ export default function ForumPage() {
                     <TopicSkeleton />
                     <TopicSkeleton />
                   </>
-                ) : topics.length > 0 ? (
-                  topics.map((topic) => (
+                ) : filteredTopics.length > 0 ? (
+                  filteredTopics.map((topic) => (
                     <TableRow
                       key={topic.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors group"

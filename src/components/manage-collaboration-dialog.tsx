@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Collaboration, CollaborationRequest } from "@/lib/types";
-import { collection, query, where, onSnapshot, doc, updateDoc, orderBy } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -61,11 +61,29 @@ export function ManageCollaborationDialog({ isOpen, onOpenChange, collaboration 
 
     const handleRequestAction = async (requestId: string, action: 'accepted' | 'rejected') => {
         try {
+            // Find request details first
+            const request = requests.find(r => r.id === requestId);
+            if (!request) return;
+
             const reqRef = doc(db, 'collaboration_requests', requestId);
             await updateDoc(reqRef, { status: action });
-            toast({ title: `Solicitud ${action === 'accepted' ? 'aceptada' : 'rechazada'}` });
 
-            // Optional: Add logic here to notify the requester (e.g. create a notification for them)
+            // Create notification for the requester
+            await addDoc(collection(db, 'notifications'), {
+                type: 'collaboration',
+                title: action === 'accepted' ? 'Solicitud Aceptada' : 'Solicitud Rechazada',
+                message: action === 'accepted'
+                    ? `Tu solicitud para colaborar en "${collaboration.title}" ha sido aceptada.`
+                    : `Tu solicitud para colaborar en "${collaboration.title}" ha sido rechazada.`,
+                recipientId: request.senderId,
+                senderId: collaboration.authorId,
+                collaborationId: collaboration.id,
+                read: false,
+                createdAt: serverTimestamp(),
+                avatar: collaboration.authorAvatar
+            });
+
+            toast({ title: `Solicitud ${action === 'accepted' ? 'aceptada' : 'rechazada'}` });
         } catch (error) {
             toast({ title: "Error al procesar la solicitud", variant: "destructive" });
         }
@@ -142,10 +160,10 @@ export function ManageCollaborationDialog({ isOpen, onOpenChange, collaboration 
                                             <div className="flex flex-col space-y-2">
                                                 {req.status === 'pending' ? (
                                                     <>
-                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-green-600 border-green-200 hover:bg-green-50" onClick={() => handleRequestAction(req.id, 'accepted')}>
+                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-900" onClick={() => handleRequestAction(req.id, 'accepted')}>
                                                             <CheckCircle className="h-4 w-4" />
                                                         </Button>
-                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleRequestAction(req.id, 'rejected')}>
+                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-900" onClick={() => handleRequestAction(req.id, 'rejected')}>
                                                             <XCircle className="h-4 w-4" />
                                                         </Button>
                                                     </>

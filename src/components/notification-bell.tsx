@@ -32,6 +32,7 @@ interface Notification {
     read: boolean;
     createdAt: any;
     collaborationId?: string;
+    topicId?: string; // ID del tema del foro
 }
 
 const getIcon = (type: string) => {
@@ -112,11 +113,19 @@ export function NotificationBell() {
 
     const handleNotificationClick = (notification: Notification) => {
         let url = '';
+
+        // Navegación según tipo de notificación
         if (notification.type === 'collaboration' && notification.collaborationId) {
             url = '/colaboracion';
+        } else if ((notification.type === 'like' || notification.type === 'comment') && notification.topicId) {
+            // Redirigir al tema del foro para likes y comentarios
+            url = `/forum/${notification.topicId}`;
         }
-        // Add other types redirects if needed
-        markAsRead(notification.id, url);
+
+        // Marcar como leída y navegar
+        if (url) {
+            markAsRead(notification.id, url);
+        }
     };
 
     return (
@@ -133,14 +142,14 @@ export function NotificationBell() {
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuContent align="end" className="w-[480px]">
                 <DropdownMenuLabel className="flex items-center justify-between">
                     <span>Notificaciones</span>
                     {unreadCount > 0 && (
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-auto p-0 text-xs text-primary hover:text-primary/80"
+                            className="h-auto p-2 text-xs text-primary hover:text-white"
                             onClick={markAllAsRead}
                         >
                             Marcar todo como leído
@@ -195,9 +204,6 @@ export function NotificationBell() {
                 )}
 
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-center text-sm text-primary justify-center">
-                    Ver todas las notificaciones
-                </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
     );

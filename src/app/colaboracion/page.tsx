@@ -40,7 +40,8 @@ import {
     Sparkles,
     FileText,
     Loader2,
-    Filter
+    Filter,
+    Edit2
 } from 'lucide-react';
 import { ManageCollaborationDialog } from '@/components/manage-collaboration-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -109,6 +110,7 @@ export default function CollaborationPage() {
 
     // New collaboration dialog
     const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
+    const [editingCollabId, setEditingCollabId] = useState<string | null>(null);
     const [newCollab, setNewCollab] = useState({
         title: '',
         description: '',
@@ -157,6 +159,17 @@ export default function CollaborationPage() {
 
     const filteredCollaborations = getFilteredCollaborations();
 
+    const handleStartEdit = (collab: Collaboration) => {
+        setNewCollab({
+            title: collab.title,
+            description: collab.description,
+            skills: collab.skills.join(', '),
+            projectName: collab.projectName || '',
+        });
+        setEditingCollabId(collab.id);
+        setIsNewDialogOpen(true);
+    };
+
     const handleCreateCollab = async () => {
         if (!user) {
             toast({
@@ -174,31 +187,44 @@ export default function CollaborationPage() {
         const skills = newCollab.skills.split(',').map(s => s.trim()).filter(s => s);
 
         try {
-            await addDoc(collection(db, 'collaborations'), {
-                title: newCollab.title,
-                description: newCollab.description,
-                author: userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : (user.displayName || 'Usuario'),
-                authorId: user.uid,
-                authorAvatar: userData?.photoURL || user.photoURL || 'https://placehold.co/40x40.png',
-                skills: skills,
-                projectName: newCollab.projectName || '',
-                status: 'open',
-                requests: 0,
-                createdAt: serverTimestamp(),
-            });
+            if (editingCollabId) {
+                // Update
+                await updateDoc(doc(db, 'collaborations', editingCollabId), {
+                    title: newCollab.title,
+                    description: newCollab.description,
+                    projectName: newCollab.projectName,
+                    skills: skills,
+                });
+                toast({ title: "Llamado actualizado", description: "Los cambios han sido guardados." });
+            } else {
+                // Create
+                await addDoc(collection(db, 'collaborations'), {
+                    title: newCollab.title,
+                    description: newCollab.description,
+                    author: userData?.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : (user.displayName || 'Usuario'),
+                    authorId: user.uid,
+                    authorAvatar: userData?.photoURL || user.photoURL || 'https://placehold.co/40x40.png',
+                    skills: skills,
+                    projectName: newCollab.projectName || '',
+                    status: 'open',
+                    requests: 0,
+                    createdAt: serverTimestamp(),
+                });
+                toast({
+                    title: "¡Llamado publicado!",
+                    description: "Tu llamado a colaboradores ha sido guardado.",
+                });
+                setActiveTab("mine");
+            }
 
             setNewCollab({ title: '', description: '', skills: '', projectName: '' });
             setIsNewDialogOpen(false);
-            setActiveTab("mine");
-            toast({
-                title: "¡Llamado publicado!",
-                description: "Tu llamado a colaboradores ha sido guardado.",
-            });
+            setEditingCollabId(null);
         } catch (error) {
-            console.error("Error creating collab:", error);
+            console.error("Error creating/updating collab:", error);
             toast({
-                title: "Error",
-                description: "No se pudo publicar la colaboración.",
+                title: editingCollabId ? "Error al actualizar" : "Error al publicar",
+                description: "No se pudo procesar la solicitud.",
                 variant: "destructive",
             });
         } finally {
@@ -552,18 +578,29 @@ export default function CollaborationPage() {
                                                     </div>
 
                                                     {isMyCollab ? (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => {
-                                                                setCollabToManage(collab);
-                                                                setIsManageDialogOpen(true);
-                                                            }}
-                                                            className="gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary"
-                                                        >
-                                                            <Settings className="h-4 w-4" />
-                                                            Gestionar
-                                                        </Button>
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleStartEdit(collab)}
+                                                                className="gap-2"
+                                                            >
+                                                                <Edit2 className="h-4 w-4" />
+                                                                Editar
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    setCollabToManage(collab);
+                                                                    setIsManageDialogOpen(true);
+                                                                }}
+                                                                className="gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary"
+                                                            >
+                                                                <Settings className="h-4 w-4" />
+                                                                Gestionar
+                                                            </Button>
+                                                        </div>
                                                     ) : (
                                                         collab.status === 'open' && (
                                                             <Button
@@ -587,7 +624,13 @@ export default function CollaborationPage() {
             </div>
 
             {/* New Collaboration Dialog */}
-            <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
+            <Dialog open={isNewDialogOpen} onOpenChange={(open) => {
+                setIsNewDialogOpen(open);
+                if (!open) {
+                    setEditingCollabId(null);
+                    setNewCollab({ title: '', description: '', skills: '', projectName: '' });
+                }
+            }}>
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="space-y-3">
                         <div className="flex items-center gap-3">
@@ -595,9 +638,9 @@ export default function CollaborationPage() {
                                 <Sparkles className="h-6 w-6 text-primary" />
                             </div>
                             <div>
-                                <DialogTitle className="text-2xl">Publicar Llamado a Colaboradores</DialogTitle>
+                                <DialogTitle className="text-2xl">{editingCollabId ? 'Editar Llamado' : 'Publicar Llamado a Colaboradores'}</DialogTitle>
                                 <DialogDescription className="text-base mt-1">
-                                    Describe qué tipo de colaborador buscas y qué habilidades necesitas.
+                                    {editingCollabId ? 'Modifica los detalles de tu llamado.' : 'Describe qué tipo de colaborador buscas y qué habilidades necesitas.'}
                                 </DialogDescription>
                             </div>
                         </div>
@@ -695,7 +738,11 @@ export default function CollaborationPage() {
                     <DialogFooter className="gap-2">
                         <Button
                             variant="outline"
-                            onClick={() => setIsNewDialogOpen(false)}
+                            onClick={() => {
+                                setIsNewDialogOpen(false);
+                                setEditingCollabId(null);
+                                setNewCollab({ title: '', description: '', skills: '', projectName: '' });
+                            }}
                             disabled={isCreating}
                         >
                             Cancelar
@@ -708,12 +755,12 @@ export default function CollaborationPage() {
                             {isCreating ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                    Publicando...
+                                    {editingCollabId ? 'Guardando...' : 'Publicando...'}
                                 </>
                             ) : (
                                 <>
-                                    <Plus className="h-4 w-4" />
-                                    Publicar Llamado
+                                    {editingCollabId ? <Edit2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                                    {editingCollabId ? 'Guardar Cambios' : 'Publicar Llamado'}
                                 </>
                             )}
                         </Button>

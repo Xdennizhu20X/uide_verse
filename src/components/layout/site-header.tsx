@@ -53,12 +53,13 @@ export function SiteHeader() {
     return () => unsubscribe();
   }, []);
 
-  // Auto-hide success alert after 3 seconds
+  // Auto-hide success alert and redirect
   useEffect(() => {
     if (showLogoutSuccess) {
       const timer = setTimeout(() => {
         setShowLogoutSuccess(false);
-      }, 3000);
+        window.location.href = '/'; // Recargar y redirigir al home
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [showLogoutSuccess]);
@@ -245,9 +246,9 @@ export function SiteHeader() {
                   </Button>
                   <div className="h-6 w-px bg-slate-300 dark:bg-slate-600 mx-2" />
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     onClick={() => setShowLogoutDialog(true)}
-                    className="text-slate-600 dark:text-slate-300 hover:text-deep-blue dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                    className="border-red-300 text-red-500 dark:text-white hover:bg-red-100 dark:hover:bg-red-400"
                   >
                     Cerrar Sesión
                   </Button>

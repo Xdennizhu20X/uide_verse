@@ -52,6 +52,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,7 +138,11 @@ export default function RegisterPage() {
         }
 
         await setDoc(doc(db, "users", user.uid), userData);
-        router.push('/');
+
+        setShowSuccessAlert(true);
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
       };
 
       if (photo) {
@@ -190,6 +195,29 @@ export default function RegisterPage() {
 
   return (
     <div className="container flex items-center justify-center py-8 px-4">
+      {/* Alerta de Éxito */}
+      {showSuccessAlert && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-5 fade-in duration-300">
+          <div
+            className="flex items-center gap-3 rounded-lg p-4 pr-12 shadow-2xl border-2 min-w-[320px]"
+            style={{
+              backgroundColor: '#f0a800',
+              borderColor: '#d89500',
+            }}
+          >
+            <CheckCircle2 className="h-6 w-6 shrink-0" style={{ color: '#1a1a1a' }} />
+            <div>
+              <p className="font-bold text-base" style={{ color: '#1a1a1a' }}>
+                ¡Bienvenido a Uideverse!
+              </p>
+              <p className="text-sm font-medium" style={{ color: '#1a1a1a' }}>
+                Tu cuenta ha sido creada exitosamente
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AnimatedWrapper>
         <Card className="mx-auto max-w-lg w-full shadow-lg">
           <CardHeader className="space-y-1 text-center pb-6">

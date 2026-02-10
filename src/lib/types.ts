@@ -76,6 +76,8 @@ export interface ForumTopic {
   authorId: string;
   authorAvatar?: string;
   createdAt: any;
+  editedAt?: any;
+  isEdited?: boolean;
   repliesCount: number;
   lastReplyAt: any;
   likes: number;
@@ -90,6 +92,10 @@ export interface ForumReply {
   authorId: string;
   authorAvatar?: string;
   createdAt: any;
+  editedAt?: any;
+  isEdited?: boolean;
   likes: number;
   likedBy: string[];
+  parentId?: string | null;
+  replyToAuthor?: string;
 }
