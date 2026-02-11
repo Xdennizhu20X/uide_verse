@@ -72,7 +72,10 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // Check if current user is the author
-  const isAuthor = user?.email && project.author?.includes(user.email);
+  const isAuthor = user && (
+    (project.authors && project.authors.includes(user.email!)) ||
+    (project.authorId && project.authorId === user.uid)
+  );
 
   useEffect(() => {
     // Comments listener
@@ -296,7 +299,7 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   };
 
   const handleEdit = () => {
-    router.push(`/submit-project?edit=${project.id}`);
+    router.push(`/projects/edit/${project.id}`);
   };
 
   const handleDelete = async () => {
