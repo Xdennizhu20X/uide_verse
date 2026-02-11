@@ -118,6 +118,8 @@ export function NotificationBell() {
         } else if ((notification.type === 'like' || notification.type === 'comment') && notification.topicId) {
             // Redirigir al tema del foro para likes y comentarios
             url = `/forum/${notification.topicId}`;
+        } else if (notification.type === 'badge') {
+            url = '/profile';
         }
 
         // Marcar como leída y navegar

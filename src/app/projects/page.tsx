@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FolderOpen, Sparkles, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { getDocs, collection } from "firebase/firestore";
+import { getDocs, collection, query, where, orderBy } from "firebase/firestore";
 import type { Project } from "@/lib/types";
 import { analyzeSearchIntent } from "@/app/actions/search";
 import { motion } from "framer-motion";
@@ -34,7 +34,12 @@ export default function ProjectsPage() {
       setLoading(true);
       try {
         const projectsCollection = collection(db, 'projects');
-        const projectsSnapshot = await getDocs(projectsCollection);
+        const q = query(
+          projectsCollection,
+          where('status', '==', 'approved'),
+          orderBy('createdAt', 'desc')
+        );
+        const projectsSnapshot = await getDocs(q);
         const firebaseProjects: Project[] = projectsSnapshot.docs.map(doc => {
           const data = doc.data();
           return {
@@ -53,10 +58,16 @@ export default function ProjectsPage() {
             views: data.views || 0,
             createdAt: data.createdAt || new Date().toISOString(),
             likedBy: data.likedBy || [],
+            status: data.status,
           };
         });
-        setProjects(firebaseProjects);
-        setFilteredProjects(firebaseProjects);
+
+        console.log("Fetched projects (Query filtered):", firebaseProjects.length);
+        // Double check client side filtering just to be safe
+        const confirmedApproved = firebaseProjects.filter(p => p.status === 'approved');
+
+        setProjects(confirmedApproved);
+        setFilteredProjects(confirmedApproved);
       } catch (error) {
         console.error("Error fetching projects:", error);
       } finally {

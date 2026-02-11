@@ -10,6 +10,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import Image from "next/image";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useAuth } from "@/context/auth-context";
 import { useTheme } from "next-themes";
 import {
   AlertDialog,
@@ -32,7 +33,7 @@ const navLinks = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const { user, userData } = useAuth(); // Use context
   const [mounted, setMounted] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
@@ -45,13 +46,6 @@ export function SiteHeader() {
 
   const logoUrl = mounted && theme === 'light' ? "/uideverse-logo-ligth.png" : "/uideverse-logo.png";
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   // Auto-hide success alert and redirect
   useEffect(() => {
@@ -200,6 +194,11 @@ export function SiteHeader() {
                           <Button asChild onClick={() => setOpen(false)} className="bg-deep-blue hover:bg-blue-800 dark:bg-accent-gold dark:hover:bg-amber-400 dark:text-dark-navy">
                             <Link href="/submit-project">Enviar Proyecto</Link>
                           </Button>
+                          {(userData?.role === 'admin' || userData?.role === 'superadmin') && (
+                            <Button asChild onClick={() => setOpen(false)} variant="outline" className="border-purple-300 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20">
+                              <Link href="/admin">Panel Admin</Link>
+                            </Button>
+                          )}
                           <Button variant="outline" asChild onClick={() => setOpen(false)} className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white">
                             <Link href="/profile">Perfil</Link>
                           </Button>
@@ -241,6 +240,11 @@ export function SiteHeader() {
                   <Button asChild className="bg-deep-blue hover:bg-blue-800 dark:bg-accent-gold dark:hover:bg-amber-400 dark:text-dark-navy">
                     <Link href="/submit-project">Enviar Proyecto</Link>
                   </Button>
+                  {(userData?.role === 'admin' || userData?.role === 'superadmin') && (
+                    <Button asChild variant="ghost" className="text-purple-600 dark:text-purple-400 font-medium hover:bg-purple-50 dark:hover:bg-purple-900/20">
+                      <Link href="/admin">Panel Admin</Link>
+                    </Button>
+                  )}
                   <Button variant="outline" asChild className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800">
                     <Link href="/profile">Perfil</Link>
                   </Button>

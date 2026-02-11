@@ -117,6 +117,8 @@ export default function ProfilePage() {
           createdAt: data.createdAt || new Date().toISOString(),
           views: data.views || 0,
           likedBy: data.likedBy || [],
+          status: data.status,
+          rejectionReason: data.rejectionReason,
         });
       });
 
@@ -471,8 +473,18 @@ export default function ProfilePage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0A1A3C]/90 via-[#0A1A3C]/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-5">
                   {isFeatured && (
-                    <Badge className="bg-[#F0A901] hover:bg-[#d99700] text-[#0A1A3C] border-0 mb-2 px-2 py-0.5 text-xs font-semibold w-fit">
+                    <Badge className="bg-[#F0A901] hover:bg-[#d99700] text-[#0A1A3C] border-0 mb-2 px-2 py-0.5 text-xs font-semibold w-fit mr-2">
                       Destacado
+                    </Badge>
+                  )}
+                  {project.status === 'pending' && (
+                    <Badge className="bg-yellow-500/90 hover:bg-yellow-600 text-white border-0 mb-2 px-2 py-0.5 text-xs font-semibold w-fit mr-2">
+                      En Revisión
+                    </Badge>
+                  )}
+                  {project.status === 'rejected' && (
+                    <Badge className="bg-red-500/90 hover:bg-red-600 text-white border-0 mb-2 px-2 py-0.5 text-xs font-semibold w-fit mr-2">
+                      Rechazado
                     </Badge>
                   )}
                   <p className={`text-white font-bold leading-tight group-hover:text-[#F0A901] transition-colors ${isFeatured ? 'text-xl' : 'text-sm line-clamp-2'}`}>

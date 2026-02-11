@@ -21,6 +21,9 @@ export interface Project {
   authorId?: string;
   avatar?: string;
   isEco?: boolean;
+  status?: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  rejectionMessage?: string;
   comments: Comment[];
 }
 

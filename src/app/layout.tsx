@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { Poppins } from 'next/font/google';
 import './globals.css';
+import { AuthProvider } from '@/context/auth-context';
 
 const fontPoppins = Poppins({
   subsets: ['latin'],
@@ -33,19 +34,21 @@ export default function RootLayout({
           fontPoppins.variable
         )}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <div className="relative flex min-h-screen flex-col">
-            <NavbarWrapper />
-            <main className="flex-1">{children}</main>
-            <FooterWrapper />
-          </div>
-          <Toaster />
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            <div className="relative flex min-h-screen flex-col">
+              <NavbarWrapper />
+              <main className="flex-1">{children}</main>
+              <FooterWrapper />
+            </div>
+            <Toaster />
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

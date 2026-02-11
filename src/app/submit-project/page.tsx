@@ -41,7 +41,6 @@ const projectFormSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres."),
   description: z.string().min(20, "La descripción debe tener al menos 20 caracteres."),
   category: z.string({ required_error: "Por favor, selecciona una categoría." }),
-  category: z.string({ required_error: "Por favor, selecciona una categoría." }),
   technologies: z.string({ required_error: "Por favor, enumera las tecnologías." }),
   website: z.string().url({ message: "Por favor, introduce una URL válida." }).optional().or(z.literal('')),
   githubRepo: z.string().url({ message: "Por favor, introduce una URL válida de GitHub." }).optional().or(z.literal('')),
@@ -497,6 +496,7 @@ export default function SubmitProjectPage() {
         createdAt: new Date().toISOString(),
         likes: 0,
         likedBy: [],
+        status: 'pending', // Default status
       };
 
       const docRef = await addDoc(collection(db, "projects"), projectData);
@@ -558,8 +558,8 @@ export default function SubmitProjectPage() {
             {submitSuccess ? (
               <>
                 <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">¡Proyecto Publicado!</h2>
-                <p className="text-muted-foreground">Tu proyecto ha sido publicado correctamente. Redirigiendo...</p>
+                <h2 className="text-2xl font-bold mb-2">¡Proyecto Enviado a Revisión!</h2>
+                <p className="text-muted-foreground">Tu proyecto ha sido enviado a revisión. Pronto un Admin lo aprobará.</p>
               </>
             ) : (
               <>
