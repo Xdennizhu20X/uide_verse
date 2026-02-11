@@ -87,7 +87,8 @@ export default function ForumPage() {
     if (activeTab === "mine" && user) {
       return topics.filter(t => t.authorId === user.uid);
     }
-    return topics;
+    // For "all", show only approved topics (or all if no status defined for legacy)
+    return topics.filter(t => t.status === 'approved');
   };
 
   const filteredTopics = getFilteredTopics();
@@ -115,7 +116,8 @@ export default function ForumPage() {
         repliesCount: 0,
         lastReplyAt: serverTimestamp(),
         likes: 0,
-        likedBy: []
+        likedBy: [],
+        status: 'pending' // Initial status
       });
 
       setNewTopic({ title: '', content: '', tag: '' });

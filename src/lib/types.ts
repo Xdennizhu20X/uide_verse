@@ -86,6 +86,9 @@ export interface ForumTopic {
   lastReplyAt: any;
   likes: number;
   likedBy: string[];
+  status?: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  rejectionMessage?: string;
 }
 
 export interface ForumReply {
