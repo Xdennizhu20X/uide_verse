@@ -37,6 +37,57 @@ import { addDoc, collection, doc, getDoc, getDocs, query, setDoc, where, updateD
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useParams } from "next/navigation";
 
+const CATEGORY_CONFIG: Record<string, { techLabel: string; techPlaceholder: string; repoLabel: string; repoPlaceholder: string }> = {
+  "Ingeniería en TICs": {
+    techLabel: "Tecnologías",
+    techPlaceholder: "React, Node.js, Arduino, Python...",
+    repoLabel: "Repositorio de GitHub (opcional)",
+    repoPlaceholder: "https://github.com/usuario/repo"
+  },
+  "Arquitectura": {
+    techLabel: "Software de Diseño / Herramientas",
+    techPlaceholder: "AutoCAD, Revit, SketchUp, Lumion, V-Ray...",
+    repoLabel: "Enlace al Portafolio / Renders (Drive/Behance)",
+    repoPlaceholder: "https://drive.google.com/..."
+  },
+  "Psicología": {
+    techLabel: "Enfoques / Metodologías",
+    techPlaceholder: "Cognitivo-Conductual, Psicoanálisis, Entrevistas...",
+    repoLabel: "Enlace a Documentación / Recursos",
+    repoPlaceholder: "https://drive.google.com/..."
+  },
+  "Psicología Clínica": {
+    techLabel: "Enfoques / Herramientas Clínicas",
+    techPlaceholder: "Test Psicométricos, Terapia Breve, DSM-5...",
+    repoLabel: "Enlace a Protocolos / Casos",
+    repoPlaceholder: "https://..."
+  },
+  "Derecho": {
+    techLabel: "Rama Legal / Normativas",
+    techPlaceholder: "Derecho Penal, COIP, Constitución, Arbitraje...",
+    repoLabel: "Enlace al Expediente / Análisis",
+    repoPlaceholder: "https://..."
+  },
+  "Marketing": {
+    techLabel: "Herramientas / Canales",
+    techPlaceholder: "Google Ads, SEO, Canva, Redes Sociales...",
+    repoLabel: "Enlace a Campaña / Portafolio",
+    repoPlaceholder: "https://..."
+  },
+  "Negocios Internacionales": {
+    techLabel: "Estrategias / Herramientas",
+    techPlaceholder: "Plan de Exportación, Incoterms, Análisis de Mercado...",
+    repoLabel: "Enlace al Plan de Negocios",
+    repoPlaceholder: "https://..."
+  },
+  "default": {
+    techLabel: "Tecnologías / Herramientas",
+    techPlaceholder: "Herramientas utilizadas en el proyecto...",
+    repoLabel: "Enlace al Repositorio o Documentación (opcional)",
+    repoPlaceholder: "https://..."
+  }
+};
+
 const projectFormSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres."),
   description: z.string().min(20, "La descripción debe tener al menos 20 caracteres."),
@@ -595,15 +646,18 @@ export default function EditProjectPage() {
                   <FormField
                     control={form.control}
                     name="technologies"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tecnologías</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const config = CATEGORY_CONFIG[selectedCategory] || CATEGORY_CONFIG["default"];
+                      return (
+                        <FormItem>
+                          <FormLabel>{config.techLabel}</FormLabel>
+                          <FormControl>
+                            <Input placeholder={config.techPlaceholder} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
                 {selectedCategory === 'Otro' && (
@@ -638,15 +692,18 @@ export default function EditProjectPage() {
                   <FormField
                     control={form.control}
                     name="githubRepo"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Repositorio de GitHub (opcional)</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const config = CATEGORY_CONFIG[selectedCategory] || CATEGORY_CONFIG["default"];
+                      return (
+                        <FormItem>
+                          <FormLabel>{config.repoLabel}</FormLabel>
+                          <FormControl>
+                            <Input placeholder={config.repoPlaceholder} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
 
