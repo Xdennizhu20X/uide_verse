@@ -11,9 +11,10 @@ import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
+import { useAuth } from "@/hooks/use-auth";
 import {
   X,
   GraduationCap,
@@ -39,6 +40,7 @@ const CAREERS = [
 ];
 
 export default function RegisterPage() {
+  const { user, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -54,6 +56,20 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/projects');
+    }
+  }, [user, loading, router]);
+
+  if (loading || user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#F8FAFC] dark:bg-[#0A1A3C]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

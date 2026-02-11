@@ -3,11 +3,13 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowDown, Atom, BookOpen, Lightbulb, Rocket } from "lucide-react";
+import { ArrowDown, Atom, BookOpen, Lightbulb, Rocket, Loader2 } from "lucide-react";
 import { ClayCard } from "./clay-card";
 import { useRef } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 export function HeroSection() {
+    const { user, loading } = useAuth();
     const containerRef = useRef<HTMLElement>(null);
     const { scrollYProgress } = useScroll({
         target: containerRef,
@@ -124,9 +126,16 @@ export function HeroSection() {
                     transition={{ duration: 0.6, delay: 0.8 }}
                     className="flex justify-center gap-4"
                 >
-                    <Button asChild size="lg" className="h-16 px-12 rounded-full bg-[#0A1A3C] dark:bg-[#F0A800] hover:bg-[#152a58] dark:hover:bg-[#d99700] text-white dark:text-[#0A1A3C] text-lg font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all">
-                        <Link href="/register">Empezar Ahora</Link>
-                    </Button>
+                    {loading ? (
+                        <Button size="lg" className="h-16 px-12 rounded-full bg-[#0A1A3C] dark:bg-[#F0A800] text-white dark:text-[#0A1A3C] text-lg font-bold shadow-xl opacity-80 cursor-not-allowed">
+                            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                            Cargando...
+                        </Button>
+                    ) : (
+                        <Button asChild size="lg" className="h-16 px-12 rounded-full bg-[#0A1A3C] dark:bg-[#F0A800] hover:bg-[#152a58] dark:hover:bg-[#d99700] text-white dark:text-[#0A1A3C] text-lg font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all">
+                            <Link href={user ? "/projects" : "/register"}>Empezar Ahora</Link>
+                        </Button>
+                    )}
                 </motion.div>
             </motion.div>
 
