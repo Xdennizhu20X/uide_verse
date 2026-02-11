@@ -41,7 +41,6 @@ export default async function ProjectDetailsPage({ params: paramsPromise }: { pa
       likedBy: data.likedBy || [],
       views: data.views || 0,
       createdAt: data.createdAt || new Date().toISOString(),
-      createdAt: data.createdAt || new Date().toISOString(),
       date: new Date().toISOString().split('T')[0], // Fallback display date
       authors: data.authors,
       authorNames: data.authorNames,
