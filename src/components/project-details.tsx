@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 import { AnimatedWrapper } from '@/components/animated-wrapper';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, increment, arrayUnion, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, increment, arrayUnion, arrayRemove, setDoc, deleteDoc } from 'firebase/firestore';
 import type { Project, Comment } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';
 import { summarizeProject } from '@/app/actions/summarize';
@@ -205,27 +205,60 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
 
     try {
       const projectRef = doc(db, "projects", project.id);
-      await updateDoc(projectRef, {
-        likes: increment(1),
-        likedBy: arrayUnion(user.uid),
-      });
 
-      const authorProjectsQuery = query(collection(db, "projects"), where("authors", "array-contains", project.author));
-      const authorProjectsSnapshot = await getDocs(authorProjectsQuery);
+      if (hasLiked) {
+        // Unlike
+        await updateDoc(projectRef, {
+          likes: increment(-1),
+          likedBy: arrayRemove(user.uid),
+        });
+        setHasLiked(false);
+        setLikes(prev => prev - 1);
+        toast({
+          title: "Ya no te gusta",
+          description: "Has quitado tu like de este proyecto.",
+        });
+      } else {
+        // Like
+        await updateDoc(projectRef, {
+          likes: increment(1),
+          likedBy: arrayUnion(user.uid),
+        });
+        setHasLiked(true);
+        setLikes(prev => prev + 1);
 
-      let totalLikes = 0;
-      authorProjectsSnapshot.forEach(doc => {
-        totalLikes += doc.data().likes || 0;
-      });
+        // Badge logic (only on like)
+        const authorProjectsQuery = query(collection(db, "projects"), where("authors", "array-contains", project.author));
+        const authorProjectsSnapshot = await getDocs(authorProjectsQuery);
 
-      if (totalLikes >= 10) {
-        await setDoc(doc(db, "users", project.authorId, "badges", "10-likes"), { unlockedAt: new Date() });
+        let totalLikes = 0;
+        authorProjectsSnapshot.forEach(doc => {
+          totalLikes += doc.data().likes || 0;
+        });
+
+        if (totalLikes >= 10) {
+          await setDoc(doc(db, "users", project.authorId, "badges", "10-likes"), { unlockedAt: new Date() });
+        }
+
+        // Send Notification if not self-like
+        if (project.authorId && project.authorId !== user.uid) {
+          await addDoc(collection(db, 'notifications'), {
+            recipientId: project.authorId,
+            type: 'like',
+            title: 'Nuevo Me gusta',
+            message: `${user.displayName || 'Alguien'} le dio me gusta a tu proyecto "${project.title}"`,
+            avatar: user.photoURL || 'https://placehold.co/40x40.png',
+            read: false,
+            createdAt: serverTimestamp(),
+            topicId: project.id // Link to project
+          });
+        }
+
+        toast({
+          title: "¡Me gusta!",
+          description: "Has dado like a este proyecto.",
+        });
       }
-
-      toast({
-        title: "¡Me gusta!",
-        description: "Has dado like a este proyecto.",
-      });
     } catch (error) {
       console.error("Error liking project:", error);
       toast({
@@ -333,7 +366,7 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   };
 
   return (
-    <div className="container py-6 md:py-10 px-4">
+    <div className="container pt-24 pb-10 px-4">
       {/* Back Button with better visibility */}
       <AnimatedWrapper>
         <Button
@@ -865,11 +898,11 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                     : 'hover:scale-105'
                     }`}
                   onClick={handleLike}
-                  disabled={hasLiked || !user}
+                  disabled={!user}
                   variant={hasLiked ? "default" : "default"}
                 >
                   <Heart className={`h-5 w-5 ${hasLiked ? 'fill-current animate-pulse' : ''}`} />
-                  {hasLiked ? '¡Ya te gusta!' : `${likes} Me gusta`}
+                  {hasLiked ? '¡Ya te gusta!' : `${Math.max(0, likes)} Me gusta`}
                 </Button>
                 {!user && (
                   <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg border border-dashed">

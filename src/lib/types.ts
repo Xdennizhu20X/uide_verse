@@ -16,6 +16,7 @@ export interface Project {
   createdAt: string;
   date?: string; // For display
   authors?: string[];
+  authorNames?: string[]; // Names of the authors
   author?: string; // Display name
   authorId?: string;
   avatar?: string;
@@ -98,4 +99,16 @@ export interface ForumReply {
   likedBy: string[];
   parentId?: string | null;
   replyToAuthor?: string;
+}
+export interface Notification {
+  id: string;
+  recipientId: string;
+  type: 'collaboration' | 'like' | 'comment' | 'badge' | 'project_invite';
+  title: string;
+  message: string;
+  avatar?: string;
+  read: boolean;
+  createdAt: any;
+  collaborationId?: string; // Can be projectId for collaborations
+  topicId?: string; // For forum/project links
 }

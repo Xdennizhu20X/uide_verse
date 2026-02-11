@@ -23,22 +23,14 @@ import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-interface Notification {
-    id: string;
-    type: 'collaboration' | 'like' | 'comment' | 'badge';
-    title: string;
-    message: string;
-    avatar?: string;
-    read: boolean;
-    createdAt: any;
-    collaborationId?: string;
-    topicId?: string; // ID del tema del foro
-}
+import type { Notification } from '@/lib/types';
 
 const getIcon = (type: string) => {
     switch (type) {
         case 'collaboration':
             return <Users className="h-4 w-4 text-primary" />;
+        case 'project_invite':
+            return <Users className="h-4 w-4 text-green-500" />;
         case 'like':
             return <Heart className="h-4 w-4 text-red-500" />;
         case 'comment':
@@ -115,8 +107,14 @@ export function NotificationBell() {
         let url = '';
 
         // Navegación según tipo de notificación
-        if (notification.type === 'collaboration' && notification.collaborationId) {
-            url = '/colaboracion';
+        if (notification.type === 'collaboration') {
+            if (notification.topicId) {
+                url = `/projects/${notification.topicId}`;
+            } else if (notification.collaborationId) {
+                url = '/colaboracion';
+            }
+        } else if (notification.type === 'project_invite' && notification.topicId) {
+            url = `/projects/${notification.topicId}`;
         } else if ((notification.type === 'like' || notification.type === 'comment') && notification.topicId) {
             // Redirigir al tema del foro para likes y comentarios
             url = `/forum/${notification.topicId}`;

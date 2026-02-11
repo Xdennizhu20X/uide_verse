@@ -67,7 +67,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4">
+    <div className="container flex min-h-screen items-center justify-center pt-24 pb-12 px-4">
       {/* Alerta de éxito personalizada */}
       {showSuccessAlert && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-5 fade-in duration-300">

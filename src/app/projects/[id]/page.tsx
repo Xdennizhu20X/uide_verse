@@ -41,9 +41,11 @@ export default async function ProjectDetailsPage({ params: paramsPromise }: { pa
       likedBy: data.likedBy || [],
       views: data.views || 0,
       createdAt: data.createdAt || new Date().toISOString(),
+      createdAt: data.createdAt || new Date().toISOString(),
       date: new Date().toISOString().split('T')[0], // Fallback display date
       authors: data.authors,
-      author: data.authors ? data.authors.join(', ') : 'Unknown',
+      authorNames: data.authorNames,
+      author: data.authorNames ? data.authorNames.join(', ') : (data.authors ? data.authors.join(', ') : 'Unknown'),
       authorId: authorId,
       avatar: data.avatar || 'https://placehold.co/40x40.png',
       isEco: data.isEcological || false,

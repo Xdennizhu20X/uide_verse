@@ -28,11 +28,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AnimatedWrapper } from "@/components/animated-wrapper";
-import { UploadCloud, X, FileText, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { UploadCloud, X, FileText, CheckCircle, Loader2, AlertCircle, Sparkles, Film, Search } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { db } from "@/lib/firebase";
-import { addDoc, collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 
@@ -40,7 +41,8 @@ const projectFormSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres."),
   description: z.string().min(20, "La descripción debe tener al menos 20 caracteres."),
   category: z.string({ required_error: "Por favor, selecciona una categoría." }),
-  technologies: z.string().min(3, "Por favor, enumera al menos una tecnología."),
+  category: z.string({ required_error: "Por favor, selecciona una categoría." }),
+  technologies: z.string({ required_error: "Por favor, enumera las tecnologías." }),
   website: z.string().url({ message: "Por favor, introduce una URL válida." }).optional().or(z.literal('')),
   githubRepo: z.string().url({ message: "Por favor, introduce una URL válida de GitHub." }).optional().or(z.literal('')),
   isEcological: z.boolean().default(false).optional(),
@@ -66,14 +68,76 @@ interface FileWithPreview {
   error?: string;
 }
 
+interface User {
+  uid: string;
+  email: string;
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+  photoURL?: string;
+}
+
 export default function SubmitProjectPage() {
   const [projectFiles, setProjectFiles] = useState<FileWithPreview[]>([]);
   const [pdfFile, setPdfFile] = useState<FileWithPreview | null>(null);
+  const [videoFile, setVideoFile] = useState<FileWithPreview | null>(null);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const { user, loading, canUploadProjects, isStudent } = useAuth();
   const router = useRouter();
+
+  // Author Search State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [selectedAuthors, setSelectedAuthors] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSearchUsers = async (queryText: string) => {
+    setSearchQuery(queryText);
+    if (queryText.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Simple search by email prefix
+      const usersRef = collection(db, "users");
+      const q = query(
+        usersRef,
+        where("email", ">=", queryText),
+        where("email", "<=", queryText + '\uf8ff'),
+        // limit(5) // Limit is optional but good for performance
+      );
+
+      const querySnapshot = await getDocs(q);
+      const users: User[] = [];
+      querySnapshot.forEach((doc) => {
+        const userData = doc.data() as User;
+        // Exclude current user and already selected authors
+        if (userData.email !== user?.email && !selectedAuthors.some(a => a.email === userData.email)) {
+          users.push({ ...userData, uid: doc.id });
+        }
+      });
+      setSearchResults(users.slice(0, 5));
+    } catch (error) {
+      console.error("Error searching users:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const addAuthor = (author: User) => {
+    setSelectedAuthors([...selectedAuthors, author]);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const removeAuthor = (email: string) => {
+    setSelectedAuthors(selectedAuthors.filter(a => a.email !== email));
+  };
 
   // 1. All Hooks must be called unconditionally at the top level
   const form = useForm<ProjectFormValues>({
@@ -119,6 +183,57 @@ export default function SubmitProjectPage() {
       uploaded: false,
     });
   }, []);
+
+  // Handle Video file selection
+  const handleVideoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 50 * 1024 * 1024) {
+      alert("El video no puede superar los 50MB");
+      return;
+    }
+
+    setVideoFile({
+      file,
+      preview: file.name,
+      progress: 0,
+      uploaded: false,
+    });
+  }, []);
+
+  const handleGenerateDescription = async () => {
+    const { title, category, technologies, description } = form.getValues();
+
+    if (!title || !category || !technologies) {
+      alert("Por favor completa el Título, Categoría y Tecnologías para generar una descripción.");
+      return;
+    }
+
+    setIsGeneratingDescription(true);
+    try {
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          category,
+          technologies,
+          currentDescription: description
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.description) {
+        form.setValue('description', data.description);
+      }
+    } catch (error) {
+      console.error("Error generating description:", error);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
 
   // 2. Conditional returns come AFTER all hooks
   // Access control - show loading or redirect if not authorized
@@ -196,6 +311,10 @@ export default function SubmitProjectPage() {
   // Remove PDF
   const removePdf = () => {
     setPdfFile(null);
+  };
+
+  const removeVideo = () => {
+    setVideoFile(null);
   };
 
   // Upload file with progress
@@ -295,6 +414,19 @@ export default function SubmitProjectPage() {
         }
       }
 
+      // Upload Video with progress
+      let videoFileUrl = '';
+      if (videoFile) {
+        try {
+          videoFileUrl = await uploadFileWithProgress(videoFile, (progress) => {
+            setVideoFile(prev => prev ? { ...prev, progress } : null);
+          });
+          setVideoFile(prev => prev ? { ...prev, uploaded: true } : null);
+        } catch (error) {
+          setVideoFile(prev => prev ? { ...prev, error: 'Error al subir' } : null);
+        }
+      }
+
       // Upload PDF with progress
       let pdfFileUrl = '';
       if (pdfFile) {
@@ -309,9 +441,42 @@ export default function SubmitProjectPage() {
       }
 
       const authors = [user.email];
+      const authorNames = [];
+
+      // 1. Get Current User Name
+      // Try to get from Firestore profile first for most up-to-date name
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+          authorNames.push(fullName || user.displayName || user.email!.split('@')[0]);
+        } else {
+          authorNames.push(user.displayName || user.email!.split('@')[0]);
+        }
+      } catch (e) {
+        console.error("Error fetching user profile for name:", e);
+        authorNames.push(user.displayName || user.email!.split('@')[0]);
+      }
+
+      // Add selected authors from state
+      if (selectedAuthors.length > 0) {
+        authors.push(...selectedAuthors.map(a => a.email));
+        authorNames.push(...selectedAuthors.map(a =>
+          a.displayName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.email.split('@')[0]
+        ));
+      }
+
+      // Keep legacy support for manual entry if needed, or remove it. 
+      // User requested "debe dejar agregar a autores que esten registrados" implying ONLY registered.
+      // But let's keep manual entry as fallback if desired, or just rely on search.
+      // Assuming search is the primary way now.
       if (data.otherAuthors) {
-        const otherAuthorsList = data.otherAuthors.split(',').map(author => author.trim());
-        authors.push(...otherAuthorsList);
+        // Optional: Merge manual entry if user typed something but didn't select?
+        // For now, let's prioritize selectedAuthors. 
+        // If data.otherAuthors is used as a search box, we ignore its form value for submission 
+        // and use selectedAuthors state.
       }
 
       const projectData = {
@@ -324,15 +489,35 @@ export default function SubmitProjectPage() {
         isEcological: data.isEcological || false,
         ...(data.otherCategory && { otherCategory: data.otherCategory }),
         imageUrls: uploadedImageUrls,
+        videoUrl: videoFileUrl || null,
         developmentPdfUrl: pdfFileUrl || null,
         authors: authors,
+        authorNames: authorNames, // Save names for display
         avatar: user.photoURL,
         createdAt: new Date().toISOString(),
         likes: 0,
         likedBy: [],
       };
 
-      await addDoc(collection(db, "projects"), projectData);
+      const docRef = await addDoc(collection(db, "projects"), projectData);
+
+      // Send notifications to selected co-authors
+      if (selectedAuthors.length > 0) {
+        for (const author of selectedAuthors) {
+          if (author.uid && author.uid !== user.uid) {
+            await addDoc(collection(db, 'notifications'), {
+              recipientId: author.uid,
+              type: 'project_invite',
+              title: 'Nuevo Proyecto Colaborativo',
+              message: `${user.displayName || 'Un usuario'} te ha añadido como co-autor en el proyecto "${data.title}"`,
+              avatar: user.photoURL,
+              read: false,
+              createdAt: new Date(),
+              topicId: docRef.id // Link to project page instead of collaboration page
+            });
+          }
+        }
+      }
 
       // Check and award badges
       const userProjectsQuery = query(collection(db, "projects"), where("authors", "array-contains", user.email));
@@ -415,6 +600,22 @@ export default function SubmitProjectPage() {
                       <Progress value={pdfFile.progress} className="h-2" />
                     </div>
                   )}
+
+                  {videoFile && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="truncate max-w-[200px]">{videoFile.file.name}</span>
+                        {videoFile.uploaded ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : videoFile.error ? (
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <span>{videoFile.progress}%</span>
+                        )}
+                      </div>
+                      <Progress value={videoFile.progress} className="h-2" />
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -425,7 +626,7 @@ export default function SubmitProjectPage() {
   }
 
   return (
-    <div className="container py-12 md:py-16">
+    <div className="container py-12 md:py-16 pt-24">
       <AnimatedWrapper>
         <Card className={`max-w-4xl mx-auto ${isEcological ? 'ecouide-theme' : ''}`}>
           <CardHeader>
@@ -476,6 +677,36 @@ export default function SubmitProjectPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Descripción</FormLabel>
+                      <div className="flex items-center justify-between mb-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGenerateDescription}
+                          disabled={isGeneratingDescription}
+                          className="bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800"
+                        >
+                          {isGeneratingDescription ? (
+                            <>
+                              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                              Generando...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-2 h-3 w-3" />
+                              Mejorar con IA
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      {isGeneratingDescription && (
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 mb-3 flex items-start">
+                          <Loader2 className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-2 animate-spin flex-shrink-0" />
+                          <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                            La IA está analizando tu proyecto para generar una descripción profesional. Por favor, espera unos segundos...
+                          </p>
+                        </div>
+                      )}
                       <FormControl>
                         <Textarea placeholder="Describe tu proyecto en detalle..." className="min-h-[120px]" {...field} />
                       </FormControl>
@@ -498,14 +729,13 @@ export default function SubmitProjectPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Desarrollo Web">Desarrollo Web</SelectItem>
-                            <SelectItem value="App Móvil">App Móvil</SelectItem>
-                            <SelectItem value="IA/ML">IA/ML</SelectItem>
-                            <SelectItem value="IoT">IoT</SelectItem>
-                            <SelectItem value="Hardware">Hardware</SelectItem>
-                            <SelectItem value="Robótica">Robótica</SelectItem>
-                            <SelectItem value="Arte Digital">Arte Digital</SelectItem>
-                            <SelectItem value="Educación">Educación</SelectItem>
+                            <SelectItem value="Ingeniería en TICs">Ingeniería en TICs</SelectItem>
+                            <SelectItem value="Psicología">Psicología</SelectItem>
+                            <SelectItem value="Psicología Clínica">Psicología Clínica</SelectItem>
+                            <SelectItem value="Negocios Internacionales">Negocios Internacionales</SelectItem>
+                            <SelectItem value="Marketing">Marketing</SelectItem>
+                            <SelectItem value="Derecho">Derecho</SelectItem>
+                            <SelectItem value="Arquitectura">Arquitectura</SelectItem>
                             <SelectItem value="Otro">Otro</SelectItem>
                           </SelectContent>
                         </Select>
@@ -580,13 +810,75 @@ export default function SubmitProjectPage() {
                   name="otherAuthors"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Correos Electrónicos de Otros Autores</FormLabel>
-                      <FormControl>
-                        <Input placeholder="p. ej., juan.perez@uide.edu.ec, maria.garcia@uide.edu.ec" {...field} />
-                      </FormControl>
+                      <FormLabel>Colaboradores (Otros Autores)</FormLabel>
                       <FormDescription>
-                        Introduce los correos electrónicos de otros autores, separados por comas.
+                        Busca y añade a otros usuarios registrados por su correo electrónico.
                       </FormDescription>
+                      <FormControl>
+                        <div className="relative">
+                          <div className="flex items-center border rounded-md px-3 py-2 focus-within:ring-2 focus-within:ring-ring focus-within:border-primary">
+                            <Search className="h-4 w-4 text-muted-foreground mr-2" />
+                            <input
+                              type="text"
+                              className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+                              placeholder="Buscar por correo electrónico (ej. juan@uide.edu.ec)..."
+                              value={searchQuery}
+                              onChange={(e) => handleSearchUsers(e.target.value)}
+                            />
+                            {isSearching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                          </div>
+
+                          {/* Search Results Dropdown */}
+                          {searchResults.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md z-10 max-h-60 overflow-y-auto">
+                              {searchResults.map((user) => (
+                                <div
+                                  key={user.uid}
+                                  className="flex items-center p-2 hover:bg-accent cursor-pointer transition-colors"
+                                  onClick={() => addAuthor(user)}
+                                >
+                                  <Avatar className="h-8 w-8 mr-2">
+                                    <AvatarImage src={user.photoURL} />
+                                    <AvatarFallback>{user.displayName?.substring(0, 2).toUpperCase() || "U"}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium">
+                                      {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || "Usuario"}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">{user.email}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </FormControl>
+
+                      {/* Selected Authors List */}
+                      {selectedAuthors.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {selectedAuthors.map((author) => (
+                            <div key={author.email} className="flex items-center bg-secondary text-secondary-foreground rounded-full pl-1 pr-3 py-1 text-sm">
+                              <Avatar className="h-6 w-6 mr-2">
+                                <AvatarImage src={author.photoURL} />
+                                <AvatarFallback className="text-[10px]">
+                                  {(author.displayName || author.firstName || "U").substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>
+                                {author.displayName || `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.email}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeAuthor(author.email)}
+                                className="ml-2 hover:text-destructive focus:outline-none"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -648,9 +940,54 @@ export default function SubmitProjectPage() {
                   </FormDescription>
                 </FormItem>
 
-                {/* PDF Upload with Preview */}
+                {/* Video Upload */}
                 <FormItem>
-                  <FormLabel>Informe de Desarrollo del Proyecto (PDF)</FormLabel>
+                  <FormLabel>Video Demo (Opcional)</FormLabel>
+                  <FormControl>
+                    <div className="space-y-4">
+                      {!videoFile ? (
+                        <div className="flex items-center justify-center w-full">
+                          <label htmlFor="video-dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-secondary/50 hover:bg-secondary/80 transition-colors">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <Film className="w-8 h-8 mb-2 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground"><span className="font-semibold">Haz clic para subir video</span></p>
+                              <p className="text-xs text-muted-foreground">MP4, MOV (MAX. 50MB)</p>
+                            </div>
+                            <input
+                              id="video-dropzone-file"
+                              type="file"
+                              className="hidden"
+                              accept="video/mp4,video/quicktime,video/webm"
+                              onChange={handleVideoSelect}
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/50">
+                          <Film className="h-10 w-10 text-blue-500" />
+                          <div className="flex-1">
+                            <p className="font-medium truncate">{videoFile.file.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {(videoFile.file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={removeVideo}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </FormControl>
+                </FormItem>
+
+                {/* Document Upload */}
+                <FormItem>
+                  <FormLabel>Archivos del proyecto (ej. informe, marco teórico)</FormLabel>
                   <FormControl>
                     <div className="space-y-4">
                       {!pdfFile ? (
@@ -659,13 +996,13 @@ export default function SubmitProjectPage() {
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
                               <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />
                               <p className="text-sm text-muted-foreground"><span className="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
-                              <p className="text-xs text-muted-foreground">PDF (MAX. 10MB)</p>
+                              <p className="text-xs text-muted-foreground">PDF, Word, Excel, PowerPoint (MAX. 10MB)</p>
                             </div>
                             <input
                               id="pdf-dropzone-file"
                               type="file"
                               className="hidden"
-                              accept="application/pdf"
+                              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                               onChange={handlePdfSelect}
                             />
                           </label>
@@ -719,7 +1056,9 @@ export default function SubmitProjectPage() {
               <p><strong>Categoría:</strong> {form.getValues('category')}</p>
               <p><strong>Tecnologías:</strong> {form.getValues('technologies')}</p>
               <p><strong>Imágenes:</strong> {projectFiles.length} archivo(s)</p>
-              <p><strong>PDF:</strong> {pdfFile ? 'Sí' : 'No'}</p>
+              <p><strong>Imágenes:</strong> {projectFiles.length} archivo(s)</p>
+              <p><strong>Video:</strong> {videoFile ? 'Sí' : 'No'}</p>
+              <p><strong>Documentos:</strong> {pdfFile ? 'Sí' : 'No'}</p>
               {form.getValues('isEcological') && (
                 <p className="text-green-600 font-medium">🌱 Proyecto Ecológico</p>
               )}

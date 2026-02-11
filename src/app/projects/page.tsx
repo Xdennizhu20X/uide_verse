@@ -40,7 +40,7 @@ export default function ProjectsPage() {
           return {
             id: doc.id,
             title: data.title,
-            author: data.authors ? data.authors.join(', ') : 'Unknown',
+            author: data.authorNames ? data.authorNames.join(', ') : (data.authors ? data.authors.join(', ') : 'Unknown'),
             avatar: data.avatar || 'https://placehold.co/40x40.png',
             date: data.createdAt || new Date().toISOString().split('T')[0],
             category: data.category === 'Otro' ? data.otherCategory : data.category,

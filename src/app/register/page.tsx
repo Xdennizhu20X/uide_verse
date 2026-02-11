@@ -194,7 +194,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="container flex items-center justify-center py-8 px-4">
+    <div className="container flex min-h-screen items-center justify-center pt-28 pb-12 px-4">
       {/* Alerta de Éxito */}
       {showSuccessAlert && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-5 fade-in duration-300">
