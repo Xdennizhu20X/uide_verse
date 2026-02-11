@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Search, Trash2, Shield, UserPlus, MessageSquare } from 'lucide-react';
+import { CheckCircle, XCircle, Search, Trash2, Shield, UserPlus, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
@@ -31,6 +31,16 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import {
+    Table,
+    TableBody,
+    TableCaption,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function AdminDashboard() {
     const { user } = useAuth();
@@ -42,6 +52,18 @@ export default function AdminDashboard() {
     const [userData, setUserData] = useState<User | null>(null);
     const [newAdminEmail, setNewAdminEmail] = useState('');
     const [searchAdminResult, setSearchAdminResult] = useState<any>(null);
+
+    // User Management State
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [userSearchQuery, setUserSearchQuery] = useState('');
+    const [filterRole, setFilterRole] = useState('all');
+    const [filterCareer, setFilterCareer] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [userSearchQuery, filterRole, filterCareer]);
 
     // Project Rejection State
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -73,6 +95,7 @@ export default function AdminDashboard() {
                 } else {
                     fetchProjects();
                     fetchForums();
+                    fetchUsers();
                 }
             } else {
                 router.push('/');
@@ -103,6 +126,17 @@ export default function AdminDashboard() {
             console.error("Error fetching forums:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchUsers = async () => {
+        try {
+            const q = query(collection(db, 'users'));
+            const snapshot = await getDocs(q);
+            const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setAllUsers(users);
+        } catch (error) {
+            console.error("Error fetching users:", error);
         }
     };
 
@@ -310,6 +344,17 @@ export default function AdminDashboard() {
         rejected: allForums.filter(f => f.status === 'rejected'),
     };
 
+    // Pagination Logic for Users
+    const filteredUsers = allUsers.filter(u => {
+        const matchesSearch = (u.name?.toLowerCase() || '').includes(userSearchQuery.toLowerCase()) || (u.email?.toLowerCase() || '').includes(userSearchQuery.toLowerCase());
+        const matchesRole = filterRole === 'all' || (filterRole === 'student' ? u.isUideStudent : !u.isUideStudent);
+        const matchesCareer = filterCareer === 'all' || u.career === filterCareer;
+        return matchesSearch && matchesRole && matchesCareer;
+    });
+
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
     return (
         <div className="container mx-auto pb-8 pt-48">
             <div className="flex justify-between items-center mb-6">
@@ -326,6 +371,9 @@ export default function AdminDashboard() {
                     </TabsTrigger>
                     <TabsTrigger value="forums" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none px-4 py-2">
                         Forums
+                    </TabsTrigger>
+                    <TabsTrigger value="users" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none px-4 py-2">
+                        Users
                     </TabsTrigger>
                     {userData?.role === 'superadmin' && (
                         <TabsTrigger value="admins" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none px-4 py-2">
@@ -388,6 +436,120 @@ export default function AdminDashboard() {
                     </Tabs>
                 </TabsContent>
 
+                <TabsContent value="users">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Gestión de Usuarios</CardTitle>
+                            <CardDescription>Ver y filtrar usuarios registrados.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-col md:flex-row gap-4 mb-6">
+                                <div className="flex-1">
+                                    <Input
+                                        placeholder="Buscar por nombre o correo..."
+                                        value={userSearchQuery}
+                                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <Select value={filterRole} onValueChange={setFilterRole}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Tipo de Usuario" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos</SelectItem>
+                                        <SelectItem value="student">Estudiantes</SelectItem>
+                                        <SelectItem value="external">Externos</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select value={filterCareer} onValueChange={setFilterCareer}>
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder="Carrera" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las Carreras</SelectItem>
+                                        <SelectItem value="Ingeniería en TICs">Ingeniería en TICs</SelectItem>
+                                        <SelectItem value="Psicología">Psicología</SelectItem>
+                                        <SelectItem value="Psicología Clínica">Psicología Clínica</SelectItem>
+                                        <SelectItem value="Negocios Internacionales">Negocios Internacionales</SelectItem>
+                                        <SelectItem value="Marketing">Marketing</SelectItem>
+                                        <SelectItem value="Derecho">Derecho</SelectItem>
+                                        <SelectItem value="Arquitectura">Arquitectura</SelectItem>
+                                        <SelectItem value="Otro">Otro</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="rounded-md border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Usuario</TableHead>
+                                            <TableHead>Rol</TableHead>
+                                            <TableHead>Carrera</TableHead>
+                                            <TableHead>Email</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {paginatedUsers.map((user) => (
+                                            <TableRow key={user.id}>
+                                                <TableCell className="flex items-center gap-3">
+                                                    <Avatar>
+                                                        <AvatarImage src={user.avatar || (user as any).photoURL} />
+                                                        <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="font-medium">{user.name}</p>
+                                                        {user.role === 'admin' && <Badge variant="secondary" className="text-xs">Admin</Badge>}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {user.isUideStudent ? (
+                                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Estudiante</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">Externo</Badge>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>{user.career || 'N/A'}</TableCell>
+                                                <TableCell>{user.email}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-between items-center mt-4">
+                                    <div className="text-sm text-muted-foreground">
+                                        Página {currentPage} de {totalPages} ({filteredUsers.length} total)
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            disabled={currentPage === 1}
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                            Anterior
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            Siguiente
+                                            <ChevronRight className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
                 <TabsContent value="admins">
                     <div className="max-w-md mx-auto mt-8">
                         <Card>
@@ -426,10 +588,10 @@ export default function AdminDashboard() {
                         </Card>
                     </div>
                 </TabsContent>
-            </Tabs>
+            </Tabs >
 
             {/* Project Reject Dialog */}
-            <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+            < Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen} >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Rechazar Proyecto</DialogTitle>
@@ -458,10 +620,10 @@ export default function AdminDashboard() {
                         <Button variant="destructive" onClick={handleConfirmReject}>Rechazar</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Forum Reject Dialog */}
-            <Dialog open={rejectForumDialogOpen} onOpenChange={setRejectForumDialogOpen}>
+            < Dialog open={rejectForumDialogOpen} onOpenChange={setRejectForumDialogOpen} >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Rechazar Tema del Foro</DialogTitle>
@@ -490,8 +652,8 @@ export default function AdminDashboard() {
                         <Button variant="destructive" onClick={handleConfirmRejectForum}>Rechazar</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
-        </div>
+            </Dialog >
+        </div >
     );
 }
 

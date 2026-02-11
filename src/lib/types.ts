@@ -29,9 +29,14 @@ export interface Project {
 
 export interface User {
   id: string;
-  name: string;
-  avatar: string;
+  name: string; // Display Name
+  email: string;
+  avatar: string; // Photo URL
   role?: string;
+  firstName?: string; // Stored in Firestore
+  lastName?: string;  // Stored in Firestore
+  career?: string;    // Stored in Firestore
+  isUideStudent?: boolean; // Stored in Firestore
 }
 
 export interface Comment {
