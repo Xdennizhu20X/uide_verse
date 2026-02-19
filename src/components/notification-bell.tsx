@@ -15,8 +15,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, Heart, MessageSquare, Award, CheckCircle } from 'lucide-react';
 
-import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -54,27 +52,41 @@ export function NotificationBell() {
             return;
         }
 
-        const q = query(
-            collection(db, 'notifications'),
-            where('recipientId', '==', user.uid),
-            orderBy('createdAt', 'desc')
-        );
+        let unsubscribe: () => void;
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const notifs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as Notification));
-            setNotifications(notifs);
-        });
+        const initNotifications = async () => {
+            const { db } = await import('@/lib/firebase');
+            const { collection, query, where, onSnapshot, orderBy } = await import('firebase/firestore');
 
-        return () => unsubscribe();
+            const q = query(
+                collection(db, 'notifications'),
+                where('recipientId', '==', user.uid),
+                orderBy('createdAt', 'desc')
+            );
+
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                const notifs = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                } as Notification));
+                setNotifications(notifs);
+            });
+        };
+
+        initNotifications();
+
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, [user]);
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
     const markAsRead = async (id: string, redirectUrl?: string) => {
         try {
+            const { db } = await import('@/lib/firebase');
+            const { doc, updateDoc } = await import('firebase/firestore');
+
             const notifRef = doc(db, 'notifications', id);
             await updateDoc(notifRef, { read: true });
 
@@ -89,6 +101,9 @@ export function NotificationBell() {
 
     const markAllAsRead = async () => {
         try {
+            const { db } = await import('@/lib/firebase');
+            const { doc, writeBatch } = await import('firebase/firestore');
+
             const batch = writeBatch(db);
             const unread = notifications.filter(n => !n.read);
 
@@ -131,7 +146,7 @@ export function NotificationBell() {
     return (
         <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
+                <Button variant="ghost" size="icon" className="relative text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white" aria-label="Notificaciones">
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
                         <Badge

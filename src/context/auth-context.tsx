@@ -1,9 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { type User } from 'firebase/auth'; // Keep type import
 import { User as AppUser } from '@/lib/types';
 
 interface AuthContextType {
@@ -24,28 +22,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            setUser(firebaseUser);
-            if (firebaseUser) {
-                try {
-                    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-                    if (userDoc.exists()) {
-                        setUserData(userDoc.data() as AppUser);
-                    } else {
-                        // Handle case where user exists in Auth but not Firestore (shouldn't happen ideally)
+        let unsubscribe: () => void;
+
+        const initAuth = async () => {
+            const { onAuthStateChanged } = await import('firebase/auth');
+            const { auth, db } = await import('@/lib/firebase');
+            const { doc, getDoc } = await import('firebase/firestore');
+
+            unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+                if (firebaseUser) {
+                    setUser(firebaseUser);
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                        if (userDoc.exists()) {
+                            setUserData(userDoc.data() as AppUser);
+                        } else {
+                            setUserData(null);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching user data:", error);
                         setUserData(null);
                     }
-                } catch (error) {
-                    console.error("Error fetching user data:", error);
+                } else {
+                    setUser(null);
                     setUserData(null);
                 }
-            } else {
-                setUserData(null);
-            }
-            setLoading(false);
-        });
+                setLoading(false);
+            });
+        };
 
-        return () => unsubscribe();
+        initAuth();
+
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, []);
 
     return (

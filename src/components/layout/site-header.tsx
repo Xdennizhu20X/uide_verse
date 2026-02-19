@@ -6,12 +6,12 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { NotificationBell } from "@/components/notification-bell";
+import dynamic from "next/dynamic";
 import Image from "next/image";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "next-themes";
+
+const NotificationBell = dynamic(() => import("@/components/notification-bell").then(mod => mod.NotificationBell), { ssr: false });
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,7 +44,7 @@ export function SiteHeader() {
     setMounted(true);
   }, []);
 
-  const logoUrl = mounted && theme === 'light' ? "/uideverse-logo-ligth.png" : "/uideverse-logo.png";
+  const logoUrl = mounted && theme === 'light' ? "/uideverse-logo-ligth.webp" : "/uideverse-logo.webp";
 
 
   // Auto-hide success alert and redirect
@@ -60,6 +60,8 @@ export function SiteHeader() {
 
   const handleLogout = async () => {
     try {
+      const { auth } = await import("@/lib/firebase");
+      const { signOut } = await import("firebase/auth");
       await signOut(auth);
       setShowLogoutDialog(false);
       setShowLogoutSuccess(true);
@@ -125,8 +127,10 @@ export function SiteHeader() {
               <Image
                 src={logoUrl}
                 alt="Uideverse Hub Logo"
-                width={147}
-                height={32}
+                width={0}
+                height={0}
+                sizes="100vw"
+                className="w-auto h-8"
                 priority
               />
             </Link>
@@ -252,7 +256,7 @@ export function SiteHeader() {
                   <Button
                     variant="outline"
                     onClick={() => setShowLogoutDialog(true)}
-                    className="border-red-300 text-red-500 dark:text-white hover:bg-red-100 dark:hover:bg-red-400"
+                    className="border-red-600 text-red-600 dark:text-white hover:bg-red-50 dark:hover:bg-red-900/20 font-medium"
                   >
                     Cerrar Sesión
                   </Button>

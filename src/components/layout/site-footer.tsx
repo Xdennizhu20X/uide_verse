@@ -42,11 +42,12 @@ export function SiteFooter() {
           <div className="col-span-2 lg:col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <Image
-                src="/uideverse-logo-ligth.png"
+                src="/uideverse-logo-ligth.webp"
                 alt="Uideverse Hub Logo"
-                width={147}
-                height={32}
-                className="dark:brightness-0 dark:invert"
+                width={0}
+                height={0}
+                sizes="100vw"
+                className="w-auto h-8 dark:brightness-0 dark:invert"
               />
             </Link>
             <p className="text-muted-foreground text-sm max-w-sm mb-6">

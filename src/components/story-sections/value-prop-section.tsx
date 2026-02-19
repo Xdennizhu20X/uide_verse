@@ -8,27 +8,29 @@ export function ValuePropSection() {
         <section className="relative w-full h-screen flex items-center justify-center overflow-hidden" style={{ scrollSnapAlign: 'start' }}>
             <div className="container px-4 mx-auto relative z-10">
                 <div className="max-w-5xl mx-auto text-center">
-                    <motion.h2
+                    <motion.div
                         initial={{ opacity: 0, y: 50 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true, amount: 0.5 }}
                         transition={{ duration: 0.8 }}
-                        className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#0A1A3C] dark:text-white leading-tight mb-12"
                     >
-                        Muestra tus proyectos,<br />
-                        <span className="text-[#F0A800]">colabora con compañeros</span><br />
-                        y construye un legado.
-                    </motion.h2>
+                        <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-dark-navy dark:text-white leading-tight mb-12">
+                            Muestra tus proyectos,<br />
+                            <span className="text-amber-600 dark:text-[#F0A800]">colabora con compañeros</span><br />
+                            y construye un legado.
+                        </h2>
+                    </motion.div>
 
-                    <motion.p
+                    <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true, amount: 0.5 }}
                         transition={{ duration: 0.8, delay: 0.2 }}
-                        className="text-xl md:text-2xl text-slate-500 dark:text-slate-300 font-light max-w-3xl mx-auto"
                     >
-                        Una plataforma diseñada para que el talento universitario no se quede en el aula.
-                    </motion.p>
+                        <p className="text-xl md:text-2xl text-slate-700 dark:text-slate-200 font-light max-w-3xl mx-auto">
+                            Una plataforma diseñada para que el talento universitario no se quede en el aula.
+                        </p>
+                    </motion.div>
                 </div>
             </div>
 
